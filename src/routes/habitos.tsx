@@ -1,0 +1,343 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { PageShell, PageHero } from "@/components/PageShell";
+import { useVisitPage } from "@/hooks/useAscensao";
+
+export const Route = createFileRoute("/habitos")({
+  head: () => ({
+    meta: [
+      { title: "Hábitos — Ritual Diário | Santuário do Glow-up" },
+      { name: "description", content: "Checklist diário de hábitos para esculpir corpo, voz e mente." },
+      { property: "og:title", content: "Hábitos — Ritual Diário" },
+      { property: "og:description", content: "Disciplina é a oração dos antigos." },
+    ],
+  }),
+  component: Habitos,
+});
+
+const defaultGroups = [
+  {
+    pillar: "Higiene",
+    items: [
+      "Tomar banho padrão",
+      "Usar fio dental todos os dias",
+      "Desodorante com a axila limpa e seca",
+      "Lavar o rosto de manhã e a noite",
+      "Aparar pelos",
+      "Esfoliar a pele (retira pele morta)",
+    ],
+  },
+  {
+    pillar: "Aura",
+    items: [
+      "Skincare matinal completo",
+      "Proteção solar reaplicada",
+      "Treino de força ou mobilidade",
+      "Postura: 3 check-ins ao longo do dia",
+    ],
+  },
+  {
+    pillar: "Verbo",
+    items: [
+      "Leitura em voz alta — 10 minutos",
+      "Uma conversa significativa (sem ecrã)",
+      "Diário de uma frase memorável do dia",
+    ],
+  }
+];
+
+const STORAGE_KEY = "santuario.habitos.v1";
+const GROUPS_KEY = "santuario.habitos.groups.v1";
+
+function todayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function Habitos() {
+  useVisitPage("habitos");
+  
+  const [groups, setGroups] = useState(defaultGroups);
+  const [history, setHistory] = useState<Record<string, Record<string, 'green' | 'red'>>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const raw = localStorage.getItem("santuario.habitos.v1");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed.date && parsed.done && !parsed.history) {
+          const mig: Record<string, 'green'> = {};
+          for (const [k, v] of Object.entries(parsed.done)) if (v) mig[k] = 'green';
+          return { [parsed.date]: mig };
+        }
+        return parsed.history ?? {};
+      }
+    } catch {}
+    return {};
+  });
+  const [date, setDate] = useState(todayKey());
+  const [newItemText, setNewItemText] = useState("");
+  const [editingPillar, setEditingPillar] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const savedGroups = localStorage.getItem(GROUPS_KEY);
+      if (savedGroups) setGroups(JSON.parse(savedGroups));
+      setDate(todayKey());
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    const sync = () => {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          setHistory(parsed.history ?? {});
+        }
+      } catch {}
+    };
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ history }));
+      window.dispatchEvent(new CustomEvent("habitos:update"));
+    } catch {}
+  }, [history]);
+
+  const setHabitState = (k: string, state: 'green' | 'red') => setHistory((prev) => {
+    const todayHistory = prev[date] || {};
+    // Se clicar no mesmo estado, remove (toggle off)
+    const newState = todayHistory[k] === state ? undefined : state;
+    const nextToday = { ...todayHistory };
+    if (newState) nextToday[k] = newState;
+    else delete nextToday[k];
+    
+    const next = { ...prev, [date]: nextToday };
+    return next;
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(GROUPS_KEY, JSON.stringify(groups));
+    } catch {}
+  }, [groups]);
+
+  const addItem = (pillar: string) => {
+    if (!newItemText.trim()) return;
+    setGroups(prev => prev.map(g => {
+      if (g.pillar === pillar && !g.items.includes(newItemText.trim())) {
+        return { ...g, items: [...g.items, newItemText.trim()] };
+      }
+      return g;
+    }));
+    setNewItemText("");
+    setEditingPillar(null);
+  };
+
+  const removeItem = (pillar: string, item: string) => {
+    setGroups(prev => prev.map(g => {
+      if (g.pillar === pillar) return { ...g, items: g.items.filter(i => i !== item) };
+      return g;
+    }));
+  };
+
+  const moveItem = (pillar: string, index: number, dir: -1 | 1) => {
+    setGroups(prev => prev.map(g => {
+      if (g.pillar !== pillar) return g;
+      if (index + dir < 0 || index + dir >= g.items.length) return g;
+      const newItems = [...g.items];
+      [newItems[index], newItems[index + dir]] = [newItems[index + dir], newItems[index]];
+      return { ...g, items: newItems };
+    }));
+  };
+
+  const all = groups.flatMap((g) => g.items);
+  const todayDone = history[date] || {};
+  const completed = all.filter((i) => todayDone[i] === 'green').length;
+  const pct = all.length > 0 ? Math.round((completed / all.length) * 100) : 0;
+
+  // Últimos 10 dias e Próximos 10 dias
+  const daysArray = Array.from({ length: 21 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() + (i - 10));
+    return d.toISOString().slice(0, 10);
+  });
+
+  return (
+    <PageShell>
+      <PageHero
+        eyebrow="Ritual diário"
+        title="A oração dos antigos"
+        intro="Disciplina não é castigo — é o ritmo pelo qual o templo se ergue, pedra após pedra."
+      />
+
+      <section className="mx-auto max-w-5xl px-6 py-12">
+        <div className="border border-border bg-card p-6">
+          <div className="flex items-center justify-between text-sm">
+            <span className="label-eyebrow">Progresso de hoje</span>
+            <span className="font-display text-3xl text-primary">{pct}% <span className="text-xl text-muted-foreground">({completed}/{all.length})</span></span>
+          </div>
+          <div className="mt-4 h-2 w-full bg-border rounded-full overflow-hidden">
+            <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+          </div>
+        </div>
+
+        {/* Gráfico Geral de 21 dias */}
+        <div className="mt-6 border border-border bg-card p-6 overflow-x-auto">
+          <p className="label-eyebrow mb-6">Gráfico Geral (10 dias antes / 10 dias depois)</p>
+          <div className="relative min-w-max h-48 flex">
+            {/* Eixo Y (0 a 100) */}
+            <div className="flex flex-col justify-between text-[10px] text-muted-foreground pr-4 pb-6 font-mono text-right w-10 border-r border-border mr-2 h-full">
+              <span>100</span>
+              <span>75</span>
+              <span>50</span>
+              <span>25</span>
+              <span>0</span>
+            </div>
+            
+            {/* Área do Gráfico */}
+            <div className="relative flex-1 flex gap-2 h-full pb-6">
+              {/* Linhas de Grade */}
+              <div className="absolute inset-0 pb-6 flex flex-col justify-between pointer-events-none z-0">
+                <div className="w-full border-t border-border/40" />
+                <div className="w-full border-t border-border/40" />
+                <div className="w-full border-t border-border/40" />
+                <div className="w-full border-t border-border/40" />
+                <div className="w-full border-t border-border/40" />
+              </div>
+
+              {daysArray.map(d => {
+                const dayHistory = history[d] || {};
+                const c = all.filter(i => dayHistory[i] === 'green').length;
+                const p = all.length > 0 ? (c / all.length) * 100 : 0;
+                const isToday = d === date;
+                return (
+                  <div key={d} className="flex-1 flex flex-col justify-end items-center group relative z-10 w-8 h-full">
+                    <div className={`w-full transition-all rounded-t-sm ${isToday ? 'bg-primary' : 'bg-primary/40'}`} style={{ height: `${p}%`, minHeight: p > 0 ? '4px' : '0' }} />
+                    <span className={`absolute -bottom-6 text-[10px] ${isToday ? 'text-primary font-bold' : 'text-muted-foreground'}`}>{d.slice(8,10)}</span>
+                    <div className="absolute bottom-full mb-1 hidden group-hover:block bg-popover text-popover-foreground text-xs px-2 py-1 rounded shadow z-20 whitespace-nowrap">
+                      {d.split('-').reverse().join('/')}: {Math.round(p)}%
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-5xl px-6 pb-24">
+        {groups.map((g) => (
+          <div key={g.pillar}>
+            <div className="flex items-center justify-between">
+              <p className="label-eyebrow">Pilar · {g.pillar}</p>
+              <button 
+                onClick={() => setEditingPillar(editingPillar === g.pillar ? null : g.pillar)}
+                className="text-xs uppercase tracking-widest text-primary hover:underline"
+              >
+                {editingPillar === g.pillar ? "Fechar" : "Adicionar Hábito"}
+              </button>
+            </div>
+            
+            {editingPillar === g.pillar && (
+              <div className="mt-4 flex gap-2">
+                <input 
+                  type="text" 
+                  value={newItemText} 
+                  onChange={(e) => setNewItemText(e.target.value)} 
+                  placeholder="Novo hábito..." 
+                  className="flex-1 border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                  onKeyDown={(e) => e.key === 'Enter' && addItem(g.pillar)}
+                />
+                <button 
+                  onClick={() => addItem(g.pillar)}
+                  className="border border-primary bg-primary/10 px-4 py-2 text-xs uppercase tracking-widest text-primary hover:bg-primary/20"
+                >
+                  Salvar
+                </button>
+              </div>
+            )}
+            
+            <ul className="mt-4 divide-y divide-border border-y border-border">
+              {g.items.map((it, idx) => {
+                const state = todayDone[it];
+                return (
+                  <li key={it} className="group flex flex-col py-4 transition hover:bg-muted/40 px-2">
+                    <div className="flex items-center gap-4">
+                      {/* Setas de ordenação */}
+                      <div className="flex flex-col opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => moveItem(g.pillar, idx, -1)} className="text-muted-foreground hover:text-primary leading-none p-1">▲</button>
+                        <button onClick={() => moveItem(g.pillar, idx, 1)} className="text-muted-foreground hover:text-primary leading-none p-1">▼</button>
+                      </div>
+                      
+                      <span className={`flex-1 font-display text-2xl ${state === 'green' ? "text-muted-foreground line-through" : "text-foreground"}`}>
+                        {it}
+                      </span>
+                      
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setHabitState(it, 'green')}
+                          className={`w-10 h-10 flex items-center justify-center rounded-full border transition-colors ${state === 'green' ? 'bg-green-600 border-green-600 text-white' : 'border-border text-muted-foreground hover:border-green-600 hover:text-green-600'}`}
+                          title="Feito"
+                        >
+                          ✓
+                        </button>
+                        <button
+                          onClick={() => setHabitState(it, 'red')}
+                          className={`w-10 h-10 flex items-center justify-center rounded-full border transition-colors ${state === 'red' ? 'bg-red-600 border-red-600 text-white' : 'border-border text-muted-foreground hover:border-red-600 hover:text-red-600'}`}
+                          title="Falhou"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      <button 
+                        onClick={() => removeItem(g.pillar, it)}
+                        className="opacity-0 group-hover:opacity-100 p-2 text-xs uppercase tracking-widest text-destructive hover:underline transition-opacity ml-2"
+                      >
+                        Remover
+                      </button>
+                    </div>
+                    
+                    {/* Histórico 21 Dias do Hábito */}
+                    <div className="mt-4 pl-12 flex gap-[2px] overflow-x-auto pb-1">
+                      {daysArray.map(d => {
+                        const s = history[d]?.[it];
+                        const isToday = d === date;
+                        let bgClass = "bg-border";
+                        if (s === 'green') bgClass = "bg-green-500";
+                        if (s === 'red') bgClass = "bg-red-500";
+                        
+                        return (
+                          <div 
+                            key={d} 
+                            title={`${d.split('-')[2]}/${d.split('-')[1]} - ${s === 'green' ? 'Feito' : s === 'red' ? 'Falhou' : 'Pendente'}`}
+                            className={`h-4 min-w-3 flex-1 max-w-[12px] rounded-[1px] transition-colors ${isToday ? 'ring-1 ring-primary ring-offset-1 ring-offset-background' : ''} ${bgClass}`}
+                          />
+                        );
+                      })}
+                    </div>
+                  </li>
+                );
+              })}
+              {g.items.length === 0 && (
+                <li className="py-4 text-sm italic text-muted-foreground">Nenhum hábito neste pilar.</li>
+              )}
+            </ul>
+          </div>
+        ))}
+        <button
+          onClick={() => setHistory({})}
+          className="text-sm uppercase tracking-widest text-destructive hover:underline"
+        >
+          Limpar Todo o Histórico
+        </button>
+      </section>
+    </PageShell>
+  );
+}
+
