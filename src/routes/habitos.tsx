@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { PageShell, PageHero } from "@/components/PageShell";
 import { useVisitPage } from "@/hooks/useAscensao";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/habitos")({
   head: () => ({
@@ -76,6 +77,8 @@ function Habitos() {
   const [date, setDate] = useState(todayKey());
   const [newItemText, setNewItemText] = useState("");
   const [editingPillar, setEditingPillar] = useState<string | null>(null);
+  const [renamingItem, setRenamingItem] = useState<{ pillar: string; item: string } | null>(null);
+  const [renameText, setRenameText] = useState("");
 
   useEffect(() => {
     try {
@@ -83,6 +86,16 @@ function Habitos() {
       if (savedGroups) setGroups(JSON.parse(savedGroups));
       setDate(todayKey());
     } catch {}
+
+    const email = localStorage.getItem("santuario.email");
+    if (email) {
+      supabase.from("habits_data").select("groups, history").eq("email", email).single().then(({ data }) => {
+        if (data) {
+          if (Array.isArray(data.groups) && data.groups.length > 0) setGroups(data.groups as any);
+          if (data.history && Object.keys(data.history).length > 0) setHistory(data.history as any);
+        }
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -101,12 +114,19 @@ function Habitos() {
     };
   }, []);
 
+  // Sincroniza local e nuvem
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ history }));
+      localStorage.setItem(GROUPS_KEY, JSON.stringify(groups));
       window.dispatchEvent(new CustomEvent("habitos:update"));
+      
+      const email = localStorage.getItem("santuario.email");
+      if (email) {
+        supabase.from("habits_data").upsert({ email, history, groups }).then();
+      }
     } catch {}
-  }, [history]);
+  }, [history, groups]);
 
   const setHabitState = (k: string, state: 'green' | 'red') => setHistory((prev) => {
     const todayHistory = prev[date] || {};
@@ -119,12 +139,6 @@ function Habitos() {
     const next = { ...prev, [date]: nextToday };
     return next;
   });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(GROUPS_KEY, JSON.stringify(groups));
-    } catch {}
-  }, [groups]);
 
   const addItem = (pillar: string) => {
     if (!newItemText.trim()) return;
@@ -143,6 +157,36 @@ function Habitos() {
       if (g.pillar === pillar) return { ...g, items: g.items.filter(i => i !== item) };
       return g;
     }));
+  };
+
+  const startRename = (pillar: string, item: string) => {
+    setRenamingItem({ pillar, item });
+    setRenameText(item);
+  };
+
+  const confirmRename = () => {
+    if (!renamingItem) return;
+    const newName = renameText.trim();
+    if (!newName || newName === renamingItem.item) { setRenamingItem(null); return; }
+    // Atualiza grupos
+    setGroups(prev => prev.map(g => {
+      if (g.pillar !== renamingItem.pillar) return g;
+      return { ...g, items: g.items.map(i => i === renamingItem.item ? newName : i) };
+    }));
+    // Migra histórico para a nova chave
+    setHistory(prev => {
+      const next: typeof prev = {};
+      for (const [day, dayMap] of Object.entries(prev)) {
+        const newDay: Record<string, 'green' | 'red'> = { ...dayMap };
+        if (renamingItem.item in newDay) {
+          newDay[newName] = newDay[renamingItem.item];
+          delete newDay[renamingItem.item];
+        }
+        next[day] = newDay;
+      }
+      return next;
+    });
+    setRenamingItem(null);
   };
 
   const moveItem = (pillar: string, index: number, dir: -1 | 1) => {
@@ -273,11 +317,33 @@ function Habitos() {
                         <button onClick={() => moveItem(g.pillar, idx, -1)} className="text-muted-foreground hover:text-primary leading-none p-1">▲</button>
                         <button onClick={() => moveItem(g.pillar, idx, 1)} className="text-muted-foreground hover:text-primary leading-none p-1">▼</button>
                       </div>
-                      
-                      <span className={`flex-1 font-display text-2xl ${state === 'green' ? "text-muted-foreground line-through" : "text-foreground"}`}>
-                        {it}
-                      </span>
-                      
+
+                      {/* Nome do hábito — normal ou modo edição */}
+                      {renamingItem?.pillar === g.pillar && renamingItem?.item === it ? (
+                        <div className="flex flex-1 items-center gap-2">
+                          <input
+                            autoFocus
+                            type="text"
+                            value={renameText}
+                            onChange={e => setRenameText(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') confirmRename(); if (e.key === 'Escape') setRenamingItem(null); }}
+                            className="flex-1 font-display text-2xl bg-transparent border-b border-primary outline-none text-foreground"
+                          />
+                          <button
+                            onClick={confirmRename}
+                            className="text-xs uppercase tracking-widest text-primary border border-primary px-3 py-1 hover:bg-primary/10 transition"
+                          >OK</button>
+                          <button
+                            onClick={() => setRenamingItem(null)}
+                            className="text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground transition"
+                          >✕</button>
+                        </div>
+                      ) : (
+                        <span className={`flex-1 font-display text-2xl ${state === 'green' ? "text-muted-foreground line-through" : "text-foreground"}`}>
+                          {it}
+                        </span>
+                      )}
+
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => setHabitState(it, 'green')}
@@ -295,12 +361,20 @@ function Habitos() {
                         </button>
                       </div>
 
-                      <button 
-                        onClick={() => removeItem(g.pillar, it)}
-                        className="opacity-0 group-hover:opacity-100 p-2 text-xs uppercase tracking-widest text-destructive hover:underline transition-opacity ml-2"
-                      >
-                        Remover
-                      </button>
+                      <div className="opacity-0 group-hover:opacity-100 flex items-center gap-2 transition-opacity ml-2">
+                        <button
+                          onClick={() => startRename(g.pillar, it)}
+                          className="p-2 text-xs uppercase tracking-widest text-primary hover:underline"
+                        >
+                          Renomear
+                        </button>
+                        <button
+                          onClick={() => removeItem(g.pillar, it)}
+                          className="p-2 text-xs uppercase tracking-widest text-destructive hover:underline"
+                        >
+                          Remover
+                        </button>
+                      </div>
                     </div>
                     
                     {/* Histórico 21 Dias do Hábito */}

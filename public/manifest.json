@@ -1,0 +1,28 @@
+{
+  "name": "Santuário do Glow-up",
+  "short_name": "Santuário",
+  "description": "Transformação integral: estética e aura. Um santuário clássico para a evolução masculina.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#13293D",
+  "theme_color": "#13293D",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "categories": ["lifestyle", "health", "fitness"]
+}

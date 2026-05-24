@@ -162,3 +162,32 @@
   color: transparent;
   animation: gold-shimmer 3s linear infinite;
 }
+
+/* ─── Mobile / PWA ──────────────────────────────── */
+html {
+  scroll-behavior: smooth;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  /* Suporte a notch/safe-area (iPhone, etc.) */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+  overscroll-behavior-y: contain;
+}
+
+/* Tap targets mínimos de 44px para mobile */
+button, a, [role="button"] {
+  min-height: 44px;
+  min-width: 44px;
+  touch-action: manipulation;
+}
+
+/* Texto legível em telas pequenas */
+@media (max-width: 640px) {
+  .font-display {
+    word-break: break-word;
+  }
+}
+
