@@ -9,7 +9,6 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as MentorRouteImport } from './routes/mentor'
 import { Route as HabitosRouteImport } from './routes/habitos'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as BibliotecaRouteImport } from './routes/biblioteca'
@@ -24,11 +23,6 @@ import { Route as AuraCabeloRouteImport } from './routes/aura.cabelo'
 import { Route as AuraBarbaRouteImport } from './routes/aura.barba'
 import { Route as AuraAcessoriosRouteImport } from './routes/aura.acessorios'
 
-const MentorRoute = MentorRouteImport.update({
-  id: '/mentor',
-  path: '/mentor',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const HabitosRoute = HabitosRouteImport.update({
   id: '/habitos',
   path: '/habitos',
@@ -101,7 +95,6 @@ export interface FileRoutesByFullPath {
   '/biblioteca': typeof BibliotecaRoute
   '/dashboard': typeof DashboardRoute
   '/habitos': typeof HabitosRoute
-  '/mentor': typeof MentorRoute
   '/aura/acessorios': typeof AuraAcessoriosRoute
   '/aura/barba': typeof AuraBarbaRoute
   '/aura/cabelo': typeof AuraCabeloRoute
@@ -116,7 +109,6 @@ export interface FileRoutesByTo {
   '/biblioteca': typeof BibliotecaRoute
   '/dashboard': typeof DashboardRoute
   '/habitos': typeof HabitosRoute
-  '/mentor': typeof MentorRoute
   '/aura/acessorios': typeof AuraAcessoriosRoute
   '/aura/barba': typeof AuraBarbaRoute
   '/aura/cabelo': typeof AuraCabeloRoute
@@ -133,7 +125,6 @@ export interface FileRoutesById {
   '/biblioteca': typeof BibliotecaRoute
   '/dashboard': typeof DashboardRoute
   '/habitos': typeof HabitosRoute
-  '/mentor': typeof MentorRoute
   '/aura/acessorios': typeof AuraAcessoriosRoute
   '/aura/barba': typeof AuraBarbaRoute
   '/aura/cabelo': typeof AuraCabeloRoute
@@ -151,7 +142,6 @@ export interface FileRouteTypes {
     | '/biblioteca'
     | '/dashboard'
     | '/habitos'
-    | '/mentor'
     | '/aura/acessorios'
     | '/aura/barba'
     | '/aura/cabelo'
@@ -166,7 +156,6 @@ export interface FileRouteTypes {
     | '/biblioteca'
     | '/dashboard'
     | '/habitos'
-    | '/mentor'
     | '/aura/acessorios'
     | '/aura/barba'
     | '/aura/cabelo'
@@ -182,7 +171,6 @@ export interface FileRouteTypes {
     | '/biblioteca'
     | '/dashboard'
     | '/habitos'
-    | '/mentor'
     | '/aura/acessorios'
     | '/aura/barba'
     | '/aura/cabelo'
@@ -199,18 +187,10 @@ export interface RootRouteChildren {
   BibliotecaRoute: typeof BibliotecaRoute
   DashboardRoute: typeof DashboardRoute
   HabitosRoute: typeof HabitosRoute
-  MentorRoute: typeof MentorRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/mentor': {
-      id: '/mentor'
-      path: '/mentor'
-      fullPath: '/mentor'
-      preLoaderRoute: typeof MentorRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/habitos': {
       id: '/habitos'
       path: '/habitos'
@@ -335,7 +315,6 @@ const rootRouteChildren: RootRouteChildren = {
   BibliotecaRoute: BibliotecaRoute,
   DashboardRoute: DashboardRoute,
   HabitosRoute: HabitosRoute,
-  MentorRoute: MentorRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

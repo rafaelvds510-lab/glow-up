@@ -53,9 +53,6 @@ function Home() {
               há disciplina, beleza e o método dos antigos.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link to="/mentor" className="inline-flex items-center justify-center rounded-sm bg-aegean px-6 py-3 text-sm font-medium uppercase tracking-widest text-marble transition hover:bg-aegean/90">
-                Consultar o Mentor
-              </Link>
               <Link to="/habitos" className="inline-flex items-center justify-center rounded-sm border border-aegean/40 px-6 py-3 text-sm font-medium uppercase tracking-widest text-aegean transition hover:bg-aegean/5">
                 Iniciar ritual
               </Link>
@@ -95,34 +92,6 @@ function Home() {
                 </span>
               </Link>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* MENTOR */}
-      <section className="mx-auto max-w-6xl px-6 py-24">
-        <div className="grid grid-cols-1 items-center gap-12 md:grid-cols-2">
-          <div className="order-2 md:order-1">
-            <p className="label-eyebrow">Mentor IA</p>
-            <h2 className="mt-3 font-display text-5xl text-aegean">Giacomo Casanova</h2>
-            <p className="mt-6 text-lg leading-relaxed text-foreground/80">
-              O sedutor veneziano renasce em forma digital. Conselheiro paciente,
-              libertino erudito — pronto para examinar cada gesto, cada frase,
-              cada hesitação.
-            </p>
-            <Link to="/mentor" className="mt-8 inline-flex items-center justify-center rounded-sm bg-terracotta px-6 py-3 text-sm font-medium uppercase tracking-widest text-marble transition hover:opacity-90">
-              Conversar com Casanova
-            </Link>
-          </div>
-          <div className="order-1 flex justify-center md:order-2">
-            <div className="relative aspect-[3/4] w-full max-w-sm border border-gold/40 bg-card p-8">
-              <div className="absolute -top-3 left-6 bg-background px-3 label-eyebrow">Confidente</div>
-              <Owl className="mx-auto h-32 w-32 text-aegean" />
-              <p className="mt-8 text-center font-display text-2xl italic text-aegean transition-all duration-300">
-                “{pensamento.text}”
-              </p>
-              <div className="mt-6 text-center label-eyebrow">— {pensamento.author}{pensamento.source ? `, ${pensamento.source}` : ""}</div>
-            </div>
           </div>
         </div>
       </section>

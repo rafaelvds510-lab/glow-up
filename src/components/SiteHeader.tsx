@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ColumnLogo } from "./Ornaments";
+import { loadIdentidade, savePortrait, Portrait } from "@/lib/identidade";
 
 const nav = [
   { to: "/dashboard", label: "Dashboard" },
@@ -11,7 +12,43 @@ const nav = [
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [portrait, setPortrait] = useState<Portrait | null>(null);
   const router = useRouterState();
+
+  useEffect(() => {
+    const sync = () => setPortrait(loadIdentidade().portrait);
+    sync();
+    window.addEventListener("identidade:update", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("identidade:update", sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      if (ev.target?.result) {
+        savePortrait({ foto: ev.target.result as string });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRestart = () => {
+    if (confirm("ATENÇÃO: O Purgatório apagará permanentemente todos os registros de hábitos e vícios. Seu progresso retornará ao pó. Deseja realmente prosseguir?")) {
+      localStorage.removeItem("santuario.habitos.v1");
+      localStorage.removeItem("santuario.habitos.groups.v1");
+      localStorage.removeItem("santuario.vicios.v1");
+      window.location.reload();
+    }
+  };
 
   // Fecha menu ao navegar
   useEffect(() => { setOpen(false); }, [router.location.pathname]);
@@ -51,41 +88,59 @@ export function SiteHeader() {
             </div>
           </Link>
 
-          {/* Nav desktop */}
-          <nav className="hidden items-center gap-7 text-sm md:flex">
-            {nav.map((n) => (
-              <Link
-                key={n.to}
-                to={n.to}
-                className={linkClass}
-                activeProps={{ className: activeCls }}
-              >
-                {n.label}
-              </Link>
-            ))}
-          </nav>
+          {/* Right Section: Nav, Profile & Hamburger */}
+          <div className="flex items-center gap-6 ml-auto z-50">
+            {/* Nav desktop */}
+            <nav className="hidden items-center gap-7 text-sm md:flex mr-2">
+              {nav.map((n) => (
+                <Link
+                  key={n.to}
+                  to={n.to}
+                  className={linkClass}
+                  activeProps={{ className: activeCls }}
+                >
+                  {n.label}
+                </Link>
+              ))}
+            </nav>
 
-          {/* Botão hambúrguer mobile */}
-          <button
-            id="mobile-menu-toggle"
-            aria-label="Abrir menu"
-            aria-expanded={open}
-            onClick={() => setOpen((v) => !v)}
-            className="flex h-[44px] w-[44px] flex-col items-end justify-center gap-[6px] md:hidden flex-shrink-0 z-50 ml-auto pl-4"
-          >
-            <span
-              className="block h-[2px] w-6 bg-foreground transition-all duration-300"
-              style={open ? { transform: "translateY(7px) rotate(45deg)" } : {}}
-            />
-            <span
-              className="block h-[2px] w-6 bg-foreground transition-all duration-300"
-              style={open ? { opacity: 0 } : {}}
-            />
-            <span
-              className="block h-[2px] w-6 bg-foreground transition-all duration-300"
-              style={open ? { transform: "translateY(-7px) rotate(-45deg)" } : {}}
-            />
-          </button>
+            {/* Perfil Button */}
+            <button
+              onClick={() => setProfileOpen(true)}
+              className="h-10 w-10 rounded-full overflow-hidden border border-border/60 hover:border-primary transition shrink-0"
+              title="Perfil"
+            >
+              {portrait?.foto ? (
+                <img src={portrait.foto} alt="Perfil" className="h-full w-full object-cover" />
+              ) : (
+                <div className="h-full w-full bg-muted/40 flex items-center justify-center text-muted-foreground text-sm">
+                  👤
+                </div>
+              )}
+            </button>
+
+            {/* Botão hambúrguer mobile */}
+            <button
+              id="mobile-menu-toggle"
+              aria-label="Abrir menu"
+              aria-expanded={open}
+              onClick={() => setOpen((v) => !v)}
+              className="flex h-[44px] w-[44px] flex-col items-end justify-center gap-[6px] md:hidden shrink-0"
+            >
+              <span
+                className="block h-[2px] w-6 bg-foreground transition-all duration-300"
+                style={open ? { transform: "translateY(7px) rotate(45deg)" } : {}}
+              />
+              <span
+                className="block h-[2px] w-6 bg-foreground transition-all duration-300"
+                style={open ? { opacity: 0 } : {}}
+              />
+              <span
+                className="block h-[2px] w-6 bg-foreground transition-all duration-300"
+                style={open ? { transform: "translateY(-7px) rotate(-45deg)" } : {}}
+              />
+            </button>
+          </div>
         </div>
       </header>
 
@@ -116,6 +171,66 @@ export function SiteHeader() {
           </Link>
         ))}
       </nav>
+
+      {/* Modal de Perfil */}
+      {profileOpen && portrait && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm border border-border bg-card p-6 shadow-xl relative">
+            <button onClick={() => setProfileOpen(false)} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground">✕</button>
+            
+            <h3 className="font-display text-2xl text-aegean uppercase tracking-widest text-center mb-6">Identidade</h3>
+            
+            <div className="flex flex-col items-center gap-4">
+              <div 
+                className="h-24 w-24 rounded-full overflow-hidden border-2 border-gold/40 cursor-pointer hover:opacity-80 transition relative group"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {portrait.foto ? (
+                  <img src={portrait.foto} alt="Perfil" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="h-full w-full bg-muted/30 flex items-center justify-center text-3xl">👤</div>
+                )}
+                <div className="absolute inset-0 bg-black/50 hidden group-hover:flex items-center justify-center text-xs text-white uppercase tracking-widest">
+                  Trocar
+                </div>
+              </div>
+              <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handlePhotoUpload} />
+
+              <div className="w-full space-y-4 mt-2">
+                <div>
+                  <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-1">Nome</label>
+                  <input 
+                    type="text" 
+                    value={portrait.nome} 
+                    onChange={(e) => savePortrait({ nome: e.target.value })}
+                    className="w-full bg-transparent border-b border-border py-2 text-foreground focus:outline-none focus:border-primary transition"
+                    placeholder="Como deseja ser chamado?"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-1">Idade</label>
+                  <input 
+                    type="number" 
+                    value={portrait.idade} 
+                    onChange={(e) => savePortrait({ idade: e.target.value })}
+                    className="w-full bg-transparent border-b border-border py-2 text-foreground focus:outline-none focus:border-primary transition"
+                    placeholder="Sua idade atual"
+                  />
+                </div>
+              </div>
+
+              <div className="w-full mt-8 pt-6 border-t border-border/40">
+                <button 
+                  onClick={handleRestart}
+                  className="w-full py-3 border border-destructive/30 text-destructive text-sm uppercase tracking-widest font-bold hover:bg-destructive hover:text-marble transition"
+                >
+                  Purgatório (Zerar Contagens)
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

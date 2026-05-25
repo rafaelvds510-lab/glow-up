@@ -4,6 +4,7 @@ import { PageShell } from "@/components/PageShell";
 import { LaurelDivider, Owl, Roman } from "@/components/Ornaments";
 import { useVisitPage } from "@/hooks/useAscensao";
 import { loadLeituras, upsertLeitura, ReadingEntry, ReadingStatus } from "@/lib/leituras";
+import { loadVicios, addVicio, addRelapse, getDaysClean, getActiveVicios, Vicio, editVicio, removeVicio } from "@/lib/vicios";
 import confetti from "canvas-confetti";
 import { DashboardCalendar } from "@/components/DashboardCalendar";
 
@@ -102,6 +103,9 @@ function Dashboard() {
   // Estados dos Alertas
   const [criticalAlerts, setCriticalAlerts] = useState<AlertItem[]>([]);
 
+  // Estados de Vícios (Libertação)
+  const [vicios, setVicios] = useState<Vicio[]>([]);
+
   // Carregar todos os dados ao montar e sincronizar
   const loadAllData = () => {
     // 1. Carregar Hábitos
@@ -123,6 +127,13 @@ function Dashboard() {
       setReadMap(loadLeituras());
     } catch (e) {
       console.error("Erro ao carregar leituras no Dashboard", e);
+    }
+
+    // 3. Carregar Vícios
+    try {
+      setVicios(loadVicios());
+    } catch (e) {
+      console.error("Erro ao carregar vícios no Dashboard", e);
     }
 
     // 3. Carregar e Filtrar Alertas Críticos (<= 3 dias)
@@ -181,10 +192,12 @@ function Dashboard() {
     // Eventos para sincronização
     window.addEventListener("habitos:update", loadAllData);
     window.addEventListener("leituras:update", loadAllData);
+    window.addEventListener("vicios:update", loadAllData);
     window.addEventListener("storage", loadAllData);
     return () => {
       window.removeEventListener("habitos:update", loadAllData);
       window.removeEventListener("leituras:update", loadAllData);
+      window.removeEventListener("vicios:update", loadAllData);
       window.removeEventListener("storage", loadAllData);
     };
   }, []);
@@ -239,16 +252,21 @@ function Dashboard() {
       const weekday = dateObj.toLocaleDateString("pt-BR", { weekday: "short" }).slice(0, 3).toUpperCase();
       const dayMonth = d.slice(8, 10) + "/" + d.slice(5, 7);
 
+      const relapsesOnDay = vicios.reduce((total, v) => {
+        return total + v.relapses.filter(r => r.startsWith(d)).length;
+      }, 0);
+
       return {
         dateStr: d,
         label: weekday,
         dayMonth,
         percent,
         doneCount,
-        total: allHabits.length
+        total: allHabits.length,
+        relapses: relapsesOnDay
       };
     });
-  }, [last7Days, habitHistory, allHabits]);
+  }, [last7Days, habitHistory, allHabits, vicios]);
 
   const completedTodayCount = allHabits.filter(h => todayDone[h] === 'green').length;
   const pctToday = allHabits.length > 0 ? Math.round((completedTodayCount / allHabits.length) * 100) : 0;
@@ -332,6 +350,35 @@ function Dashboard() {
       return { text: "Expira HOJE!", isOverdue: true };
     } else {
       return { text: `Falta${daysDiff === 1 ? "" : "m"} ${daysDiff} dia${daysDiff === 1 ? "" : "s"}`, isOverdue: false };
+    }
+  };
+
+  // 5. Handlers de Libertação de Vícios
+  const activeVicios = useMemo(() => getActiveVicios(vicios), [vicios]);
+
+  const handleAddVicio = () => {
+    const name = prompt("Qual vício você deseja banir da sua vida?");
+    if (name && name.trim()) {
+      addVicio(name.trim());
+    }
+  };
+
+  const handleEditVicio = (id: string, oldName: string) => {
+    const newName = prompt("Editar nome do vício:", oldName);
+    if (newName && newName.trim() && newName.trim() !== oldName) {
+      editVicio(id, newName.trim());
+    }
+  };
+
+  const handleRemoveVicio = (id: string) => {
+    if (confirm("Tem certeza que deseja excluir este vício do rastreio?")) {
+      removeVicio(id);
+    }
+  };
+
+  const handleRelapseVicio = (id: string) => {
+    if (confirm("Houve uma recaída? A disciplina começa hoje, novamente. Apenas a verdade o liberta.")) {
+      addRelapse(id);
     }
   };
 
@@ -442,6 +489,11 @@ function Dashboard() {
                         <div className="absolute bottom-full mb-2 hidden group-hover:flex flex-col items-center bg-aegean text-marble text-xs px-2 py-1 shadow-md z-20 pointer-events-none rounded-[1px] whitespace-nowrap">
                           <span className="font-bold">{d.percent}% concluído</span>
                           <span className="text-[10px] opacity-85">({d.doneCount}/{d.total} rituais)</span>
+                          {d.relapses > 0 && (
+                            <span className="text-[10px] text-destructive mt-1 font-bold">
+                              Recaídas: {d.relapses}
+                            </span>
+                          )}
                         </div>
 
                         {/* Dia da Semana (X-Axis Label) */}
@@ -606,6 +658,79 @@ function Dashboard() {
                   >
                     Escolher Clássico
                   </Link>
+                </div>
+              )}
+            </div>
+
+            {/* LIBERTAÇÃO DE VÍCIOS */}
+            <div className="border border-border bg-card p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <span className="font-display text-xl md:text-2xl text-aegean uppercase tracking-wider font-semibold">Libertação</span>
+                <button onClick={handleAddVicio} className="text-sm font-semibold uppercase tracking-widest text-primary hover:underline">
+                  + Adicionar
+                </button>
+              </div>
+
+              {activeVicios.length > 0 ? (
+                <div className="flex flex-col gap-5">
+                  {activeVicios.map((v) => {
+                    const daysClean = getDaysClean(v);
+                    
+                    const todayRelapses = v.relapses
+                      .filter(r => r.startsWith(todayStr))
+                      .map(r => {
+                        const date = new Date(r);
+                        return date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+                      });
+                    
+                    return (
+                      <div key={v.id} className="border-b border-border/40 pb-4 last:border-0 last:pb-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-display text-xl md:text-2xl text-aegean leading-tight font-bold">{v.name}</h4>
+                              <button onClick={() => handleEditVicio(v.id, v.name)} className="text-muted-foreground/40 hover:text-primary transition" title="Editar">
+                                ✎
+                              </button>
+                              <button onClick={() => handleRemoveVicio(v.id)} className="text-muted-foreground/40 hover:text-destructive transition" title="Excluir">
+                                ✕
+                              </button>
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-0.5">
+                              {v.relapses.length} recaída{v.relapses.length !== 1 && "s"}
+                            </p>
+                            {todayRelapses.length > 0 && (
+                              <p className="text-xs text-destructive font-semibold mt-1">
+                                Hoje: {todayRelapses.length} recaída{todayRelapses.length !== 1 && "s"} ({todayRelapses.join(", ")})
+                              </p>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            <span className="font-mono text-base md:text-lg font-bold text-gold">{daysClean}</span>
+                            <span className="block text-xs uppercase tracking-wider text-muted-foreground">Dia{daysClean !== 1 && "s"} Limpo{daysClean !== 1 && "s"}</span>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 flex justify-end">
+                          <button
+                            onClick={() => handleRelapseVicio(v.id)}
+                            className="px-3 h-9 border border-destructive/40 text-xs md:text-sm uppercase tracking-wider text-destructive hover:bg-destructive hover:text-marble transition font-bold rounded-[1px]"
+                            title="Registrar recaída e reiniciar contagem"
+                          >
+                            Registrar Recaída
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="py-8 text-center border border-dashed border-border flex flex-col items-center justify-center">
+                  <span className="text-2xl mb-2">🕊️</span>
+                  <p className="text-sm font-display text-aegean">Mente Pura</p>
+                  <p className="mt-1 text-xs text-muted-foreground max-w-[200px] mx-auto">
+                    Nenhum vício atormenta sua aura, ou já foram vencidos pelo tempo.
+                  </p>
                 </div>
               )}
             </div>

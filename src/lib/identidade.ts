@@ -23,6 +23,8 @@ export const ATTR_MAX = 10;
 
 export type Portrait = {
   nome: string;
+  idade: string;
+  foto: string;
   proposito: string;
   valores: string[];   // até 5
   forcas: string[];    // até 3
@@ -48,6 +50,8 @@ const KEY = "santuario.identidade.v1";
 
 const emptyPortrait: Portrait = {
   nome: "",
+  idade: "",
+  foto: "",
   proposito: "",
   valores: [],
   forcas: [],

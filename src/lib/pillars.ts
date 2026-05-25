@@ -46,7 +46,6 @@ export const PILLARS: Pillar[] = [
     pages: [
       { path: "/estrategia", label: "Tratado da Estratégia" },
       { path: "/biblioteca", label: "Biblioteca" },
-      { path: "/mentor", label: "Mentor IA" },
       { path: "/habitos", label: "Hábitos diários" },
     ],
     missionIds: [],
