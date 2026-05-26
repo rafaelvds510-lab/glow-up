@@ -80,6 +80,59 @@ function Habitos() {
   const [renamingItem, setRenamingItem] = useState<{ pillar: string; item: string } | null>(null);
   const [renameText, setRenameText] = useState("");
 
+  // --- Notificações Push ---
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission>("default");
+  const [notifTime, setNotifTime] = useState(() =>
+    typeof window !== "undefined" ? localStorage.getItem("santuario.notif.time") || "08:00" : "08:00"
+  );
+  const [notifEnabled, setNotifEnabled] = useState(() =>
+    typeof window !== "undefined" && localStorage.getItem("santuario.notif.enabled") === "true"
+  );
+  const [showNotifPanel, setShowNotifPanel] = useState(false);
+
+  useEffect(() => {
+    if ("Notification" in window) setNotifPermission(Notification.permission);
+  }, []);
+
+  const scheduleNotif = (time: string) => {
+    if (typeof window === "undefined" || !("Notification" in window) || Notification.permission !== "granted") return;
+    const [h, m] = time.split(":").map(Number);
+    const now = new Date();
+    const target = new Date();
+    target.setHours(h, m, 0, 0);
+    if (target.getTime() <= now.getTime()) target.setDate(target.getDate() + 1);
+    const delay = target.getTime() - now.getTime();
+    setTimeout(() => {
+      new Notification("Santuário do Glow-up 🏛️", {
+        body: "Hora do ritual diário! Complete seus hábitos e construa seu legado.",
+        icon: "/icons/icon-192.png",
+      });
+    }, delay);
+    localStorage.setItem("santuario.notif.enabled", "true");
+    localStorage.setItem("santuario.notif.time", time);
+    setNotifEnabled(true);
+  };
+
+  const handleRequestNotif = async () => {
+    if (!("Notification" in window)) {
+      alert("Seu navegador não suporta notificações push.");
+      return;
+    }
+    const perm = await Notification.requestPermission();
+    setNotifPermission(perm);
+    if (perm === "granted") scheduleNotif(notifTime);
+  };
+
+  const handleToggleNotif = () => {
+    if (notifEnabled) {
+      setNotifEnabled(false);
+      localStorage.setItem("santuario.notif.enabled", "false");
+    } else {
+      if (notifPermission === "granted") scheduleNotif(notifTime);
+      else handleRequestNotif();
+    }
+  };
+
   useEffect(() => {
     try {
       const savedGroups = localStorage.getItem(GROUPS_KEY);
@@ -275,6 +328,69 @@ function Habitos() {
       </section>
 
       <section className="mx-auto max-w-5xl px-6 pb-24">
+        {/* Barra de Notificações */}
+        <div className="mb-6 flex items-center justify-between border border-border bg-card px-4 py-3">
+          <div className="flex items-center gap-3">
+            <span className="text-xl">{notifEnabled ? "🔔" : "🔕"}</span>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest">Lembretes diários</p>
+              <p className="text-[10px] text-muted-foreground">
+                {notifEnabled ? `Ativo · ${notifTime}` : "Desativado"}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowNotifPanel(!showNotifPanel)}
+            className="text-xs uppercase tracking-widest text-primary hover:underline"
+          >
+            {showNotifPanel ? "Fechar" : "Configurar"}
+          </button>
+        </div>
+
+        {showNotifPanel && (
+          <div className="mb-6 border border-border bg-card p-5 space-y-4">
+            {notifPermission === "denied" ? (
+              <p className="text-xs text-destructive">
+                Notificações bloqueadas. Ative nas configurações do seu navegador ou SO.
+              </p>
+            ) : (
+              <>
+                <div className="flex items-center gap-4">
+                  <label className="text-xs uppercase tracking-widest text-muted-foreground shrink-0">Horário</label>
+                  <input
+                    type="time"
+                    value={notifTime}
+                    onChange={(e) => {
+                      setNotifTime(e.target.value);
+                      localStorage.setItem("santuario.notif.time", e.target.value);
+                    }}
+                    className="border border-border bg-background px-3 py-1.5 text-sm text-foreground focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <button
+                  onClick={handleToggleNotif}
+                  className={`w-full py-3 text-sm uppercase tracking-widest font-semibold transition ${
+                    notifEnabled
+                      ? "border border-destructive/40 text-destructive hover:bg-destructive/10"
+                      : "bg-primary text-primary-foreground hover:bg-primary/90"
+                  }`}
+                >
+                  {notifEnabled
+                    ? "Desativar lembrete"
+                    : notifPermission === "granted"
+                    ? "Ativar lembrete"
+                    : "Permitir notificações"}
+                </button>
+                {notifEnabled && (
+                  <p className="text-center text-xs text-muted-foreground">
+                    ✓ Lembrete diário ativado às {notifTime}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
         {groups.map((g) => (
           <div key={g.pillar}>
             <div className="flex items-center justify-between">
@@ -310,87 +426,85 @@ function Habitos() {
               {g.items.map((it, idx) => {
                 const state = todayDone[it];
                 return (
-                  <li key={it} className="group flex flex-col py-4 transition hover:bg-muted/40 px-2">
-                    <div className="flex items-center gap-4">
-                      {/* Setas de ordenação */}
-                      <div className="flex flex-col opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => moveItem(g.pillar, idx, -1)} className="text-muted-foreground hover:text-primary leading-none p-1">▲</button>
-                        <button onClick={() => moveItem(g.pillar, idx, 1)} className="text-muted-foreground hover:text-primary leading-none p-1">▼</button>
-                      </div>
-
+                  <li key={it} className="group py-3 px-3 transition hover:bg-muted/40">
+                    {/* Linha principal: nome + botões de check */}
+                    <div className="flex items-center gap-2 min-w-0">
                       {/* Nome do hábito — normal ou modo edição */}
                       {renamingItem?.pillar === g.pillar && renamingItem?.item === it ? (
-                        <div className="flex flex-1 items-center gap-2">
+                        <div className="flex flex-1 min-w-0 items-center gap-2">
                           <input
                             autoFocus
                             type="text"
                             value={renameText}
                             onChange={e => setRenameText(e.target.value)}
                             onKeyDown={e => { if (e.key === 'Enter') confirmRename(); if (e.key === 'Escape') setRenamingItem(null); }}
-                            className="flex-1 font-display text-2xl bg-transparent border-b border-primary outline-none text-foreground"
+                            className="flex-1 min-w-0 text-base bg-transparent border-b border-primary outline-none text-foreground"
                           />
-                          <button
-                            onClick={confirmRename}
-                            className="text-xs uppercase tracking-widest text-primary border border-primary px-3 py-1 hover:bg-primary/10 transition"
-                          >OK</button>
-                          <button
-                            onClick={() => setRenamingItem(null)}
-                            className="text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground transition"
-                          >✕</button>
+                          <button onClick={confirmRename} className="shrink-0 text-xs uppercase tracking-widest text-primary border border-primary px-2 py-1 hover:bg-primary/10 transition">OK</button>
+                          <button onClick={() => setRenamingItem(null)} className="shrink-0 text-xs text-muted-foreground hover:text-foreground">✕</button>
                         </div>
                       ) : (
-                        <span className={`flex-1 font-display text-2xl ${state === 'green' ? "text-muted-foreground line-through" : "text-foreground"}`}>
+                        <span className={`flex-1 min-w-0 text-sm md:text-base font-medium leading-snug ${
+                          state === 'green' ? 'text-muted-foreground line-through' : 'text-foreground'
+                        }`}>
                           {it}
                         </span>
                       )}
 
-                      <div className="flex items-center gap-2">
+                      {/* Botões de check — tamanho reduzido para caber no mobile */}
+                      <div className="flex items-center gap-1 shrink-0">
                         <button
                           onClick={() => setHabitState(it, 'green')}
-                          className={`w-10 h-10 flex items-center justify-center rounded-full border transition-colors ${state === 'green' ? 'bg-green-600 border-green-600 text-white' : 'border-border text-muted-foreground hover:border-green-600 hover:text-green-600'}`}
+                          className={`w-8 h-8 flex items-center justify-center rounded-full border text-xs font-bold transition-colors ${
+                            state === 'green'
+                              ? 'bg-green-600 border-green-600 text-white'
+                              : 'border-border text-muted-foreground hover:border-green-600 hover:text-green-600'
+                          }`}
                           title="Feito"
-                        >
-                          ✓
-                        </button>
+                        >✓</button>
                         <button
                           onClick={() => setHabitState(it, 'red')}
-                          className={`w-10 h-10 flex items-center justify-center rounded-full border transition-colors ${state === 'red' ? 'bg-red-600 border-red-600 text-white' : 'border-border text-muted-foreground hover:border-red-600 hover:text-red-600'}`}
+                          className={`w-8 h-8 flex items-center justify-center rounded-full border text-xs font-bold transition-colors ${
+                            state === 'red'
+                              ? 'bg-red-600 border-red-600 text-white'
+                              : 'border-border text-muted-foreground hover:border-red-600 hover:text-red-600'
+                          }`}
                           title="Falhou"
-                        >
-                          ✕
-                        </button>
+                        >✕</button>
                       </div>
 
-                      <div className="opacity-0 group-hover:opacity-100 flex items-center gap-2 transition-opacity ml-2">
-                        <button
-                          onClick={() => startRename(g.pillar, it)}
-                          className="p-2 text-xs uppercase tracking-widest text-primary hover:underline"
-                        >
-                          Renomear
-                        </button>
-                        <button
-                          onClick={() => removeItem(g.pillar, it)}
-                          className="p-2 text-xs uppercase tracking-widest text-destructive hover:underline"
-                        >
-                          Remover
-                        </button>
+                      {/* Ações de edição — só no desktop (hover) */}
+                      <div className="opacity-0 group-hover:opacity-100 hidden md:flex items-center gap-1 transition-opacity shrink-0">
+                        <button onClick={() => moveItem(g.pillar, idx, -1)} className="p-1 text-muted-foreground hover:text-primary text-xs">▲</button>
+                        <button onClick={() => moveItem(g.pillar, idx, 1)} className="p-1 text-muted-foreground hover:text-primary text-xs">▼</button>
+                        <button onClick={() => startRename(g.pillar, it)} className="px-2 text-xs uppercase tracking-widest text-primary hover:underline">Renomear</button>
+                        <button onClick={() => removeItem(g.pillar, it)} className="px-2 text-xs uppercase tracking-widest text-destructive hover:underline">Remover</button>
                       </div>
                     </div>
-                    
+
+                    {/* Ações de edição — mobile (linha separada, sempre visível) */}
+                    <div className="mt-1 flex items-center gap-3 md:hidden">
+                      <button onClick={() => moveItem(g.pillar, idx, -1)} className="text-xs text-muted-foreground hover:text-primary">▲</button>
+                      <button onClick={() => moveItem(g.pillar, idx, 1)} className="text-xs text-muted-foreground hover:text-primary">▼</button>
+                      <button onClick={() => startRename(g.pillar, it)} className="text-xs uppercase tracking-widest text-primary hover:underline">Renomear</button>
+                      <button onClick={() => removeItem(g.pillar, it)} className="text-xs uppercase tracking-widest text-destructive hover:underline">Remover</button>
+                    </div>
+
                     {/* Histórico 21 Dias do Hábito */}
-                    <div className="mt-4 pl-12 flex gap-[2px] overflow-x-auto pb-1">
+                    <div className="mt-2 flex gap-[2px] overflow-x-auto pb-1">
                       {daysArray.map(d => {
                         const s = history[d]?.[it];
                         const isToday = d === date;
                         let bgClass = "bg-border";
                         if (s === 'green') bgClass = "bg-green-500";
                         if (s === 'red') bgClass = "bg-red-500";
-                        
                         return (
-                          <div 
-                            key={d} 
+                          <div
+                            key={d}
                             title={`${d.split('-')[2]}/${d.split('-')[1]} - ${s === 'green' ? 'Feito' : s === 'red' ? 'Falhou' : 'Pendente'}`}
-                            className={`h-4 min-w-3 flex-1 max-w-[12px] rounded-[1px] transition-colors ${isToday ? 'ring-1 ring-primary ring-offset-1 ring-offset-background' : ''} ${bgClass}`}
+                            className={`h-3 min-w-[10px] flex-1 max-w-[12px] rounded-[1px] transition-colors ${
+                              isToday ? 'ring-1 ring-primary ring-offset-1 ring-offset-background' : ''
+                            } ${bgClass}`}
                           />
                         );
                       })}

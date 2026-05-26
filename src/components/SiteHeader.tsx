@@ -14,6 +14,7 @@ export function SiteHeader() {
   const [open, setOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [portrait, setPortrait] = useState<Portrait | null>(null);
+  const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
   const router = useRouterState();
 
   useEffect(() => {
@@ -26,6 +27,28 @@ export function SiteHeader() {
       window.removeEventListener("storage", sync);
     };
   }, []);
+
+  // PWA Install Prompt
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    const installed = () => setInstallPrompt(null);
+    window.addEventListener("beforeinstallprompt", handler);
+    window.addEventListener("appinstalled", installed);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+      window.removeEventListener("appinstalled", installed);
+    };
+  }, []);
+
+  const handleInstall = async () => {
+    if (!installPrompt) return;
+    (installPrompt as any).prompt();
+    const { outcome } = await (installPrompt as any).userChoice;
+    if (outcome === "accepted") setInstallPrompt(null);
+  };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -48,6 +71,12 @@ export function SiteHeader() {
       localStorage.removeItem("santuario.vicios.v1");
       window.location.reload();
     }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("santuario.auth");
+    localStorage.removeItem("santuario.email");
+    window.location.reload();
   };
 
   // Fecha menu ao navegar
@@ -103,6 +132,17 @@ export function SiteHeader() {
                 </Link>
               ))}
             </nav>
+
+            {/* Botão Instalar PWA — desktop */}
+            {installPrompt && (
+              <button
+                onClick={handleInstall}
+                className="hidden md:flex items-center gap-1.5 border border-primary/50 px-3 py-1.5 text-xs uppercase tracking-widest text-primary hover:bg-primary/10 transition shrink-0 animate-pulse"
+                title="Instalar app no celular ou desktop"
+              >
+                <span>↓</span> Instalar App
+              </button>
+            )}
 
             {/* Perfil Button */}
             <button
@@ -170,6 +210,16 @@ export function SiteHeader() {
             {n.label}
           </Link>
         ))}
+
+        {/* Botão Instalar PWA — mobile */}
+        {installPrompt && (
+          <button
+            onClick={() => { handleInstall(); setOpen(false); }}
+            className="mt-auto w-full border border-primary/50 bg-primary/5 py-3 text-sm uppercase tracking-widest font-semibold text-primary hover:bg-primary/15 transition flex items-center justify-center gap-2"
+          >
+            <span>↓</span> Instalar App no Celular
+          </button>
+        )}
       </nav>
 
       {/* Modal de Perfil */}
@@ -219,12 +269,18 @@ export function SiteHeader() {
                 </div>
               </div>
 
-              <div className="w-full mt-8 pt-6 border-t border-border/40">
+              <div className="w-full mt-8 pt-6 border-t border-border/40 space-y-3">
                 <button 
                   onClick={handleRestart}
                   className="w-full py-3 border border-destructive/30 text-destructive text-sm uppercase tracking-widest font-bold hover:bg-destructive hover:text-marble transition"
                 >
                   Purgatório (Zerar Contagens)
+                </button>
+                <button 
+                  onClick={handleLogout}
+                  className="w-full py-3 bg-secondary hover:bg-secondary/80 text-foreground text-sm uppercase tracking-widest font-bold transition"
+                >
+                  Sair da Conta
                 </button>
               </div>
             </div>

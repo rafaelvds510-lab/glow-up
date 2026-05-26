@@ -90,6 +90,7 @@ function RootComponent() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [showPass, setShowPass] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
 
   useEffect(() => {
     setIsAuthenticated(localStorage.getItem("santuario.auth") === "true");
@@ -103,12 +104,45 @@ function RootComponent() {
       setError("Insira um e-mail válido.");
       return;
     }
-    if (password === "santuario") {
+    if (password.length < 6) {
+      setError("A senha deve ter pelo menos 6 caracteres.");
+      return;
+    }
+
+    const contasRaw = localStorage.getItem("santuario.contas");
+    let contas: Record<string, string> = {};
+    if (contasRaw) {
+      try {
+        contas = JSON.parse(contasRaw);
+      } catch (err) {
+        contas = {};
+      }
+    }
+
+    // Inicializa com a conta padrão para manter compatibilidade e facilitar testes
+    if (Object.keys(contas).length === 0) {
+      contas["santuario@glowup.com"] = "santuario";
+    }
+
+    if (isSignUp) {
+      if (contas[emailTrimmed]) {
+        setError("Este e-mail já está cadastrado.");
+        return;
+      }
+      contas[emailTrimmed] = password;
+      localStorage.setItem("santuario.contas", JSON.stringify(contas));
       localStorage.setItem("santuario.auth", "true");
       localStorage.setItem("santuario.email", emailTrimmed);
       setIsAuthenticated(true);
     } else {
-      setError("E-mail ou senha incorretos.");
+      const senhaCorreta = contas[emailTrimmed] || (emailTrimmed === "santuario@glowup.com" ? "santuario" : undefined);
+      if (senhaCorreta && senhaCorreta === password) {
+        localStorage.setItem("santuario.auth", "true");
+        localStorage.setItem("santuario.email", emailTrimmed);
+        setIsAuthenticated(true);
+      } else {
+        setError("E-mail ou senha incorretos.");
+      }
     }
   };
 
@@ -118,7 +152,9 @@ function RootComponent() {
         <form onSubmit={handleLogin} className="w-full max-w-sm border border-border bg-card p-8 shadow-lg" id="login-form">
           <div className="text-center">
             <h1 className="font-display text-4xl text-primary">Santuário</h1>
-            <p className="mt-2 text-sm uppercase tracking-widest text-muted-foreground">Acesso restrito</p>
+            <p className="mt-2 text-sm uppercase tracking-widest text-muted-foreground">
+              {isSignUp ? "Criar Perfil" : "Acesso restrito"}
+            </p>
           </div>
           <div className="mt-8 flex flex-col gap-4">
             <div>
@@ -163,8 +199,20 @@ function RootComponent() {
             type="submit"
             className="mt-6 w-full bg-primary px-4 py-3 text-sm uppercase tracking-widest text-primary-foreground transition hover:bg-primary/90"
           >
-            Entrar
+            {isSignUp ? "Criar Perfil" : "Entrar"}
           </button>
+          <div className="mt-4 text-center">
+            <button
+              type="button"
+              onClick={() => {
+                setIsSignUp(!isSignUp);
+                setError("");
+              }}
+              className="text-xs uppercase tracking-widest text-muted-foreground hover:text-primary transition font-medium"
+            >
+              {isSignUp ? "Já tenho um perfil. Entrar" : "Não tenho perfil. Criar um perfil"}
+            </button>
+          </div>
         </form>
       </div>
     );
