@@ -156,13 +156,9 @@ function RootComponent() {
       const { error: authError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-        redirectTo: import.meta.env.DEV
-              ? window.location.origin
-              : "https://edbe82e8.glow-up-8oa.pages.dev",
-          queryParams: {
-            access_type: "offline",
-            prompt: "consent",
-          },
+          redirectTo: import.meta.env.DEV
+            ? window.location.origin
+            : "https://edbe82e8.glow-up-8oa.pages.dev",
         },
       });
       if (authError) {
