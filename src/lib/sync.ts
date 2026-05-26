@@ -54,7 +54,7 @@ export async function pushSyncData() {
   }
 
   try {
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('user_sync_data')
       .upsert({
         user_id: userId,
@@ -87,7 +87,7 @@ export async function pullSyncData() {
   if (!userId) return false;
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('user_sync_data')
       .select('*')
       .eq('user_id', userId)

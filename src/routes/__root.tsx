@@ -3,6 +3,19 @@ import { useState, useEffect } from "react";
 
 import appCss from "../styles.css?url";
 
+// Google "G" SVG icon inline (sem dependências extras)
+function GoogleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.36-8.16 2.36-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+      <path fill="none" d="M0 0h48v48H0z"/>
+    </svg>
+  );
+}
+
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -95,6 +108,7 @@ function RootComponent() {
   const [showPass, setShowPass] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   // Inicializa a sessão e a sincronização
   useEffect(() => {
@@ -114,8 +128,16 @@ function RootComponent() {
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsAuthenticated(!!session);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session) {
+        // Cobre o callback do OAuth do Google
+        setIsAuthenticated(true);
+        localStorage.setItem("santuario.auth", "true");
+        pullSyncData().catch(() => {});
+        setLoading(false);
+      } else if (event === "SIGNED_OUT") {
+        setIsAuthenticated(false);
+      }
     });
 
     // Inicia o auto-sync em background
@@ -126,6 +148,33 @@ function RootComponent() {
       if (cleanupSync) cleanupSync();
     };
   }, []);
+
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true);
+    setError("");
+    try {
+      const { error: authError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+        redirectTo: import.meta.env.DEV
+              ? window.location.origin
+              : "https://edbe82e8.glow-up-8oa.pages.dev",
+          queryParams: {
+            access_type: "offline",
+            prompt: "consent",
+          },
+        },
+      });
+      if (authError) {
+        setError(authError.message);
+        setGoogleLoading(false);
+      }
+      // Se sucesso, o browser redireciona para o Google — não precisamos setar loading=false aqui
+    } catch (err: any) {
+      setError(err.message || "Erro ao conectar com o Google.");
+      setGoogleLoading(false);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -193,7 +242,30 @@ function RootComponent() {
               {isSignUp ? "Criar Perfil na Nuvem" : "Acesso Restrito"}
             </p>
           </div>
-          <div className="mt-8 flex flex-col gap-4">
+          {/* Botão Google OAuth */}
+          <button
+            id="google-login-btn"
+            type="button"
+            onClick={handleGoogleLogin}
+            disabled={googleLoading}
+            className="mt-6 w-full flex items-center justify-center gap-3 border border-border bg-white hover:bg-gray-50 text-gray-700 px-4 py-3 text-sm font-medium transition disabled:opacity-50 shadow-sm"
+          >
+            {googleLoading ? (
+              <span className="h-4 w-4 rounded-full border-2 border-gray-400 border-t-transparent animate-spin" />
+            ) : (
+              <GoogleIcon />
+            )}
+            {googleLoading ? "Redirecionando..." : "Entrar com Google"}
+          </button>
+
+          {/* Divisor */}
+          <div className="mt-5 flex items-center gap-3">
+            <div className="flex-1 h-px bg-border" />
+            <span className="text-xs uppercase tracking-widest text-muted-foreground">ou</span>
+            <div className="flex-1 h-px bg-border" />
+          </div>
+
+          <div className="mt-4 flex flex-col gap-4">
             <div>
               <label htmlFor="login-email" className="block text-xs uppercase tracking-widest text-muted-foreground mb-1">E-mail</label>
               <input

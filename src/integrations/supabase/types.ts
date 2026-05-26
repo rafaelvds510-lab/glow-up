@@ -14,7 +14,55 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      user_sync_data: {
+        Row: {
+          user_id: string;
+          identidade: Record<string, any> | null;
+          habitos: Record<string, any> | null;
+          vicios: Record<string, any> | null;
+          leituras: Record<string, any> | null;
+          frases: Record<string, any> | null;
+          biblioteca: Record<string, any> | null;
+          updated_at?: string | null;
+        };
+        Insert: {
+          user_id: string;
+          identidade?: Record<string, any> | null;
+          habitos?: Record<string, any> | null;
+          vicios?: Record<string, any> | null;
+          leituras?: Record<string, any> | null;
+          frases?: Record<string, any> | null;
+          biblioteca?: Record<string, any> | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          user_id?: string;
+          identidade?: Record<string, any> | null;
+          habitos?: Record<string, any> | null;
+          vicios?: Record<string, any> | null;
+          leituras?: Record<string, any> | null;
+          frases?: Record<string, any> | null;
+          biblioteca?: Record<string, any> | null;
+          updated_at?: string | null;
+        };
+      };
+      habits_data: {
+        Row: {
+          email: string;
+          groups: any[] | null;
+          history: Record<string, any> | null;
+        };
+        Insert: {
+          email: string;
+          groups?: any[] | null;
+          history?: Record<string, any> | null;
+        };
+        Update: {
+          email?: string;
+          groups?: any[] | null;
+          history?: Record<string, any> | null;
+        };
+      };
     }
     Views: {
       [_ in never]: never

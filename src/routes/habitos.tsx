@@ -142,7 +142,7 @@ function Habitos() {
 
     const email = localStorage.getItem("santuario.email");
     if (email) {
-      supabase.from("habits_data").select("groups, history").eq("email", email).single().then(({ data }) => {
+      (supabase as any).from("habits_data").select("groups, history").eq("email", email).single().then(({ data }: { data: any }) => {
         if (data) {
           if (Array.isArray(data.groups) && data.groups.length > 0) setGroups(data.groups as any);
           if (data.history && Object.keys(data.history).length > 0) setHistory(data.history as any);
@@ -176,7 +176,7 @@ function Habitos() {
       
       const email = localStorage.getItem("santuario.email");
       if (email) {
-        supabase.from("habits_data").upsert({ email, history, groups }).then();
+        (supabase as any).from("habits_data").upsert({ email, history, groups }).then();
       }
     } catch {}
   }, [history, groups]);
