@@ -73,9 +73,30 @@ export function SiteHeader() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    // Limpa estado local
     localStorage.removeItem("santuario.auth");
     localStorage.removeItem("santuario.email");
+    localStorage.removeItem("santuario.contas");
+    
+    const SYNC_KEYS = [
+      "santuario.identidade.v1",
+      "santuario.habitos.v1",
+      "santuario.habitos.groups.v1",
+      "santuario.vicios.v1",
+      "santuario.leituras.v1",
+      "santuario.frases.v1",
+      "santuario.biblioteca.v1",
+      "santuario.ascensao.v1"
+    ];
+    SYNC_KEYS.forEach(k => localStorage.removeItem(k));
+
+    // Desloga do Supabase
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      await supabase.auth.signOut();
+    } catch(e) {}
+    
     window.location.reload();
   };
 

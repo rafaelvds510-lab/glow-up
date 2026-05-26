@@ -84,6 +84,9 @@ function RootShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+import { supabase } from "@/integrations/supabase/client";
+import { setupAutoSync, pullSyncData, pushSyncData } from "@/lib/sync";
+
 function RootComponent() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
   const [email, setEmail] = useState("");
@@ -91,16 +94,44 @@ function RootComponent() {
   const [error, setError] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [loading, setLoading] = useState(true);
 
+  // Inicializa a sessão e a sincronização
   useEffect(() => {
-    setIsAuthenticated(localStorage.getItem("santuario.auth") === "true");
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setIsAuthenticated(true);
+        localStorage.setItem("santuario.auth", "true");
+        // Ao iniciar, puxa os dados mais recentes da nuvem
+        pullSyncData().then(() => setLoading(false));
+      } else {
+        // Se ainda tiver o login antigo local, força deslogar
+        if (localStorage.getItem("santuario.auth") === "true") {
+          localStorage.removeItem("santuario.auth");
+        }
+        setIsAuthenticated(false);
+        setLoading(false);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAuthenticated(!!session);
+    });
+
+    // Inicia o auto-sync em background
+    const cleanupSync = setupAutoSync();
+
+    return () => {
+      subscription.unsubscribe();
+      if (cleanupSync) cleanupSync();
+    };
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     const emailTrimmed = email.trim().toLowerCase();
-    const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrimmed);
-    if (!emailValid) {
+    
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrimmed)) {
       setError("Insira um e-mail válido.");
       return;
     }
@@ -109,42 +140,48 @@ function RootComponent() {
       return;
     }
 
-    const contasRaw = localStorage.getItem("santuario.contas");
-    let contas: Record<string, string> = {};
-    if (contasRaw) {
-      try {
-        contas = JSON.parse(contasRaw);
-      } catch (err) {
-        contas = {};
-      }
-    }
+    setLoading(true);
+    setError("");
 
-    // Inicializa com a conta padrão para manter compatibilidade e facilitar testes
-    if (Object.keys(contas).length === 0) {
-      contas["santuario@glowup.com"] = "santuario";
-    }
+    try {
+      if (isSignUp) {
+        // Usa o Supabase para criar a conta
+        const { error: authError } = await supabase.auth.signUp({
+          email: emailTrimmed,
+          password: password,
+        });
 
-    if (isSignUp) {
-      if (contas[emailTrimmed]) {
-        setError("Este e-mail já está cadastrado.");
-        return;
-      }
-      contas[emailTrimmed] = password;
-      localStorage.setItem("santuario.contas", JSON.stringify(contas));
-      localStorage.setItem("santuario.auth", "true");
-      localStorage.setItem("santuario.email", emailTrimmed);
-      setIsAuthenticated(true);
-    } else {
-      const senhaCorreta = contas[emailTrimmed] || (emailTrimmed === "santuario@glowup.com" ? "santuario" : undefined);
-      if (senhaCorreta && senhaCorreta === password) {
-        localStorage.setItem("santuario.auth", "true");
-        localStorage.setItem("santuario.email", emailTrimmed);
-        setIsAuthenticated(true);
+        if (authError) throw authError;
+        
+        // Ao criar a conta nova, sobe os dados locais que o usuário já tinha
+        await pushSyncData();
+        
       } else {
-        setError("E-mail ou senha incorretos.");
+        // Usa o Supabase para logar
+        const { error: authError } = await supabase.auth.signInWithPassword({
+          email: emailTrimmed,
+          password: password,
+        });
+
+        if (authError) throw authError;
+
+        // Ao logar, baixa os dados da nuvem para o celular atual
+        await pullSyncData();
       }
+    } catch (err: any) {
+      setError(err.message || "Ocorreu um erro na autenticação.");
+    } finally {
+      setLoading(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <p className="text-muted-foreground uppercase tracking-widest text-sm animate-pulse">Sincronizando o Santuário...</p>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return (
@@ -153,7 +190,7 @@ function RootComponent() {
           <div className="text-center">
             <h1 className="font-display text-4xl text-primary">Santuário</h1>
             <p className="mt-2 text-sm uppercase tracking-widest text-muted-foreground">
-              {isSignUp ? "Criar Perfil" : "Acesso restrito"}
+              {isSignUp ? "Criar Perfil na Nuvem" : "Acesso Restrito"}
             </p>
           </div>
           <div className="mt-8 flex flex-col gap-4">
@@ -197,7 +234,8 @@ function RootComponent() {
           <button
             id="login-submit"
             type="submit"
-            className="mt-6 w-full bg-primary px-4 py-3 text-sm uppercase tracking-widest text-primary-foreground transition hover:bg-primary/90"
+            disabled={loading}
+            className="mt-6 w-full bg-primary px-4 py-3 text-sm uppercase tracking-widest text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
           >
             {isSignUp ? "Criar Perfil" : "Entrar"}
           </button>
