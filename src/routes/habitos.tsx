@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PageShell, PageHero } from "@/components/PageShell";
 import { useVisitPage } from "@/hooks/useAscensao";
 import { supabase } from "@/integrations/supabase/client";
@@ -70,6 +70,7 @@ function Habitos() {
   const [editingPillar, setEditingPillar] = useState<string | null>(null);
   const [renamingItem, setRenamingItem] = useState<{ pillar: string; item: string } | null>(null);
   const [renameText, setRenameText] = useState("");
+  const isFirstRender = useRef(true);
 
   // --- Notificações Push ---
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>("default");
@@ -142,18 +143,28 @@ function Habitos() {
         }
         const savedGroups = localStorage.getItem(GROUPS_KEY);
         if (savedGroups) {
-          setGroups(JSON.parse(savedGroups));
+          const parsed = JSON.parse(savedGroups);
+          setGroups(parsed);
+          // Marca que os dados já foram carregados da nuvem
+          isFirstRender.current = false;
         }
       } catch {}
     };
     window.addEventListener("storage", sync);
+    window.addEventListener("habitos:update", sync);
     return () => {
       window.removeEventListener("storage", sync);
+      window.removeEventListener("habitos:update", sync);
     };
   }, []);
 
   // Sincroniza local e nuvem via CustomEvent
   useEffect(() => {
+    // Pula a primeira renderização para não sobrescrever dados da nuvem
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ history }));
       localStorage.setItem(GROUPS_KEY, JSON.stringify(groups));

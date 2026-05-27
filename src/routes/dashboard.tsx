@@ -83,7 +83,14 @@ function Dashboard() {
   const todayStr = todayKey();
 
   // Estados dos Hábitos
-  const [groups, setGroups] = useState(defaultGroups);
+  const [groups, setGroups] = useState(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const savedGroups = localStorage.getItem(GROUPS_KEY);
+      if (savedGroups) return JSON.parse(savedGroups);
+    } catch {}
+    return [];
+  });
   const [habitHistory, setHabitHistory] = useState<Record<string, Record<string, 'green' | 'red'>>>(() => {
     if (typeof window === "undefined") return {};
     try {
