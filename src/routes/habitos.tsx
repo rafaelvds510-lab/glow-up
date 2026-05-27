@@ -140,6 +140,10 @@ function Habitos() {
           const parsed = JSON.parse(raw);
           setHistory(parsed.history ?? {});
         }
+        const savedGroups = localStorage.getItem(GROUPS_KEY);
+        if (savedGroups) {
+          setGroups(JSON.parse(savedGroups));
+        }
       } catch {}
     };
     window.addEventListener("storage", sync);

@@ -153,7 +153,7 @@ export async function pullSyncData() {
     console.error("[Sync] Falha ao recuperar dados do Supabase:", error);
     return false;
   } finally {
-    setTimeout(() => { isPulling = false; }, 100);
+    setTimeout(() => { isPulling = false; }, 1000);
   }
 }
 
