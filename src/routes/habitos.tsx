@@ -133,22 +133,11 @@ function Habitos() {
     }
   };
 
-  useEffect(() => {
     try {
       const savedGroups = localStorage.getItem(GROUPS_KEY);
       if (savedGroups) setGroups(JSON.parse(savedGroups));
       setDate(todayKey());
     } catch {}
-
-    const email = localStorage.getItem("santuario.email");
-    if (email) {
-      (supabase as any).from("habits_data").select("groups, history").eq("email", email).single().then(({ data }: { data: any }) => {
-        if (data) {
-          if (Array.isArray(data.groups) && data.groups.length > 0) setGroups(data.groups as any);
-          if (data.history && Object.keys(data.history).length > 0) setHistory(data.history as any);
-        }
-      });
-    }
   }, []);
 
   useEffect(() => {
@@ -167,17 +156,12 @@ function Habitos() {
     };
   }, []);
 
-  // Sincroniza local e nuvem
+  // Sincroniza local e nuvem via CustomEvent
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ history }));
       localStorage.setItem(GROUPS_KEY, JSON.stringify(groups));
       window.dispatchEvent(new CustomEvent("habitos:update"));
-      
-      const email = localStorage.getItem("santuario.email");
-      if (email) {
-        (supabase as any).from("habits_data").upsert({ email, history, groups }).then();
-      }
     } catch {}
   }, [history, groups]);
 

@@ -160,7 +160,7 @@ export function setupAutoSync() {
     if (syncTimeout) clearTimeout(syncTimeout);
     syncTimeout = setTimeout(() => {
       pushSyncData();
-    }, 3000);
+    }, 1000);
   };
 
   window.addEventListener("storage", handleStorageChange);
