@@ -57,7 +57,7 @@ function todayKey() {
 function Habitos() {
   useVisitPage("habitos");
   
-  const [groups, setGroups] = useState(() => {
+  const [groups, setGroups] = useState<Array<{ pillar: string; items: string[] }>>(() => {
     if (typeof window === "undefined") return defaultGroups;
     try {
       const savedGroups = localStorage.getItem(GROUPS_KEY);
