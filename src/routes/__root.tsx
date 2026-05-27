@@ -134,11 +134,16 @@ function RootComponent() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session) {
-        // Cobre o callback do OAuth do Google
         setIsAuthenticated(true);
-        localStorage.setItem("santuario.auth", "true");
-        pullSyncData().catch(() => {});
-        setLoading(false);
+        // Só puxa da nuvem aqui se for um login novo (ex: voltando do Google)
+        if (localStorage.getItem("santuario.auth") !== "true") {
+          localStorage.setItem("santuario.auth", "true");
+          pullSyncData().finally(() => setLoading(false));
+        } else {
+          // Se já estava autenticado (ex: reload da página), a lógica do getSession() 
+          // lidará com o pushSyncData caso esteja dirty.
+          setLoading(false);
+        }
       } else if (event === "SIGNED_OUT") {
         setIsAuthenticated(false);
       }
