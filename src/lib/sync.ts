@@ -53,6 +53,25 @@ export async function pushSyncData() {
     delete dataToSync.ascensao;
   }
 
+  // Agrupa os dados de favoritos, meta e log da biblioteca
+  const bibliotecaData: Record<string, any> = {};
+  const favs = localStorage.getItem("santuario.favoritos.v1");
+  const meta = localStorage.getItem("santuario.meta-mensal.v1");
+  const log = localStorage.getItem("santuario.paginas-log.v1");
+  if (favs) {
+    try { bibliotecaData.favoritos = JSON.parse(favs); } catch {}
+  }
+  if (meta) {
+    const parsedMeta = Number(meta);
+    if (!isNaN(parsedMeta)) bibliotecaData.meta_mensal = parsedMeta;
+  }
+  if (log) {
+    try { bibliotecaData.paginas_log = JSON.parse(log); } catch {}
+  }
+  if (Object.keys(bibliotecaData).length > 0) {
+    dataToSync.biblioteca = bibliotecaData;
+  }
+
   try {
     const { error } = await (supabase as any)
       .from('user_sync_data')
@@ -135,7 +154,17 @@ export async function pullSyncData() {
     }
 
     if (data.biblioteca && Object.keys(data.biblioteca).length > 0) {
-      localStorage.setItem("santuario.biblioteca.v1", JSON.stringify(data.biblioteca));
+      const bib = data.biblioteca as any;
+      if (bib.favoritos) {
+        localStorage.setItem("santuario.favoritos.v1", JSON.stringify(bib.favoritos));
+      }
+      if (bib.meta_mensal !== undefined) {
+        localStorage.setItem("santuario.meta-mensal.v1", String(bib.meta_mensal));
+      }
+      if (bib.paginas_log) {
+        localStorage.setItem("santuario.paginas-log.v1", JSON.stringify(bib.paginas_log));
+      }
+      localStorage.setItem("santuario.biblioteca.v1", JSON.stringify(bib));
     }
 
     console.log("[Sync] Dados restaurados da nuvem com sucesso.");
@@ -144,6 +173,13 @@ export async function pullSyncData() {
     window.dispatchEvent(new Event("storage"));
     window.dispatchEvent(new CustomEvent("identidade:update"));
     window.dispatchEvent(new CustomEvent("ascensao:update"));
+    window.dispatchEvent(new CustomEvent("favoritos:update"));
+    window.dispatchEvent(new CustomEvent("meta:update"));
+    window.dispatchEvent(new CustomEvent("paginas:update"));
+    window.dispatchEvent(new CustomEvent("frases:update"));
+    window.dispatchEvent(new CustomEvent("habitos:update"));
+    window.dispatchEvent(new CustomEvent("vicios:update"));
+    window.dispatchEvent(new CustomEvent("leituras:update"));
     
     // Removemos o dirty logo após o pull para garantir que não mandamos de volta
     localStorage.removeItem("santuario.dirty");
@@ -185,7 +221,11 @@ export function setupAutoSync() {
     "ascensao:update", 
     "habitos:update", 
     "vicios:update",
-    "leituras:update"
+    "leituras:update",
+    "frases:update",
+    "favoritos:update",
+    "meta:update",
+    "paginas:update"
   ];
   
   for (const event of customEvents) {

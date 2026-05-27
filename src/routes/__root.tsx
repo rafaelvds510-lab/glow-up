@@ -137,8 +137,11 @@ function RootComponent() {
         // Cobre o callback do OAuth do Google
         setIsAuthenticated(true);
         localStorage.setItem("santuario.auth", "true");
-        pullSyncData().catch(() => {});
-        setLoading(false);
+        if (localStorage.getItem("santuario.dirty") === "true") {
+          pushSyncData().catch(() => {}).finally(() => setLoading(false));
+        } else {
+          pullSyncData().catch(() => {}).finally(() => setLoading(false));
+        }
       } else if (event === "SIGNED_OUT") {
         setIsAuthenticated(false);
       }
