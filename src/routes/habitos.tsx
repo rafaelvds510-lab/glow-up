@@ -57,7 +57,14 @@ function todayKey() {
 function Habitos() {
   useVisitPage("habitos");
   
-  const [groups, setGroups] = useState(defaultGroups);
+  const [groups, setGroups] = useState(() => {
+    if (typeof window === "undefined") return defaultGroups;
+    try {
+      const savedGroups = localStorage.getItem(GROUPS_KEY);
+      if (savedGroups) return JSON.parse(savedGroups);
+    } catch {}
+    return defaultGroups;
+  });
   const [history, setHistory] = useState<Record<string, Record<string, 'green' | 'red'>>>(() => {
     if (typeof window === "undefined") return {};
     try {
