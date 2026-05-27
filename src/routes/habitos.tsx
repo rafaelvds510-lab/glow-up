@@ -133,6 +133,7 @@ function Habitos() {
     }
   };
 
+  useEffect(() => {
     try {
       const savedGroups = localStorage.getItem(GROUPS_KEY);
       if (savedGroups) setGroups(JSON.parse(savedGroups));
