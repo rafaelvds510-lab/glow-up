@@ -19,31 +19,15 @@ export const Route = createFileRoute("/habitos")({
 const defaultGroups = [
   {
     pillar: "Higiene",
-    items: [
-      "Tomar banho padrão",
-      "Usar fio dental todos os dias",
-      "Desodorante com a axila limpa e seca",
-      "Lavar o rosto de manhã e a noite",
-      "Aparar pelos",
-      "Esfoliar a pele (retira pele morta)",
-    ],
+    items: [],
   },
   {
     pillar: "Aura",
-    items: [
-      "Skincare matinal completo",
-      "Proteção solar reaplicada",
-      "Treino de força ou mobilidade",
-      "Postura: 3 check-ins ao longo do dia",
-    ],
+    items: [],
   },
   {
     pillar: "Verbo",
-    items: [
-      "Leitura em voz alta — 10 minutos",
-      "Uma conversa significativa (sem ecrã)",
-      "Diário de uma frase memorável do dia",
-    ],
+    items: [],
   }
 ];
 
