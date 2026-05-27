@@ -71,6 +71,7 @@ export async function pushSyncData() {
       return false;
     }
     
+    localStorage.removeItem("santuario.dirty");
     console.log("[Sync] Dados sincronizados com a nuvem com sucesso.");
     return true;
   } catch (error) {
@@ -79,6 +80,8 @@ export async function pushSyncData() {
   }
 }
 
+let isPulling = false;
+
 // Pulls state from Supabase and overwrites local storage
 export async function pullSyncData() {
   const session = await supabase.auth.getSession();
@@ -86,6 +89,7 @@ export async function pullSyncData() {
   
   if (!userId) return false;
 
+  isPulling = true;
   try {
     const { data, error } = await (supabase as any)
       .from('user_sync_data')
@@ -141,10 +145,15 @@ export async function pullSyncData() {
     window.dispatchEvent(new CustomEvent("identidade:update"));
     window.dispatchEvent(new CustomEvent("ascensao:update"));
     
+    // Removemos o dirty logo após o pull para garantir que não mandamos de volta
+    localStorage.removeItem("santuario.dirty");
+    
     return true;
   } catch (error) {
     console.error("[Sync] Falha ao recuperar dados do Supabase:", error);
     return false;
+  } finally {
+    setTimeout(() => { isPulling = false; }, 100);
   }
 }
 
@@ -154,8 +163,13 @@ export function setupAutoSync() {
   if (typeof window === "undefined") return;
   
   const handleStorageChange = (e?: any) => {
-    // Se o evento foi disparado pelo nosso próprio pullSyncData, ignoramos
+    // Se está puxando da nuvem, ignora esses eventos para não gerar loop
+    if (isPulling) return;
+    
     if (e && e.key === null) return;
+    
+    // Marca que temos dados locais não salvos na nuvem
+    localStorage.setItem("santuario.dirty", "true");
     
     if (syncTimeout) clearTimeout(syncTimeout);
     syncTimeout = setTimeout(() => {

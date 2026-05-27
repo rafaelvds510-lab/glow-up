@@ -116,8 +116,12 @@ function RootComponent() {
       if (session) {
         setIsAuthenticated(true);
         localStorage.setItem("santuario.auth", "true");
-        // Ao iniciar, puxa os dados mais recentes da nuvem
-        pullSyncData().then(() => setLoading(false));
+        if (localStorage.getItem("santuario.dirty") === "true") {
+          pushSyncData().then(() => setLoading(false));
+        } else {
+          // Ao iniciar, puxa os dados mais recentes da nuvem
+          pullSyncData().then(() => setLoading(false));
+        }
       } else {
         // Se ainda tiver o login antigo local, força deslogar
         if (localStorage.getItem("santuario.auth") === "true") {
