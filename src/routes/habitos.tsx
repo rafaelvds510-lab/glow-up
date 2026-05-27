@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { PageShell, PageHero } from "@/components/PageShell";
 import { useVisitPage } from "@/hooks/useAscensao";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,14 +45,17 @@ function Habitos() {
     if (typeof window === "undefined") return defaultGroups;
     try {
       const savedGroups = localStorage.getItem(GROUPS_KEY);
-      if (savedGroups) return JSON.parse(savedGroups);
+      if (savedGroups) {
+        const parsed = JSON.parse(savedGroups);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
     } catch {}
     return defaultGroups;
   });
   const [history, setHistory] = useState<Record<string, Record<string, 'green' | 'red'>>>(() => {
     if (typeof window === "undefined") return {};
     try {
-      const raw = localStorage.getItem("santuario.habitos.v1");
+      const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed.date && parsed.done && !parsed.history) {
@@ -70,7 +73,19 @@ function Habitos() {
   const [editingPillar, setEditingPillar] = useState<string | null>(null);
   const [renamingItem, setRenamingItem] = useState<{ pillar: string; item: string } | null>(null);
   const [renameText, setRenameText] = useState("");
-  const isFirstRender = useRef(true);
+
+  /** Salva explicitamente no localStorage — só chamado em ações do usuário */
+  const saveLocally = (
+    nextHistory: Record<string, Record<string, 'green' | 'red'>>,
+    nextGroups: Array<{ pillar: string; items: string[] }>
+  ) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ history: nextHistory }));
+      localStorage.setItem(GROUPS_KEY, JSON.stringify(nextGroups));
+    } catch (e) {
+      console.error("[Habitos] Erro ao salvar no localStorage:", e);
+    }
+  };
 
   // --- Notificações Push ---
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>("default");
@@ -126,15 +141,12 @@ function Habitos() {
   };
 
   useEffect(() => {
-    try {
-      const savedGroups = localStorage.getItem(GROUPS_KEY);
-      if (savedGroups) setGroups(JSON.parse(savedGroups));
-      setDate(todayKey());
-    } catch {}
+    setDate(todayKey());
   }, []);
 
+  // Listener: atualiza UI quando a nuvem envia novos dados (pull)
   useEffect(() => {
-    const sync = () => {
+    const onCloudUpdate = () => {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) {
@@ -144,63 +156,52 @@ function Habitos() {
         const savedGroups = localStorage.getItem(GROUPS_KEY);
         if (savedGroups) {
           const parsed = JSON.parse(savedGroups);
-          setGroups(parsed);
-          // Marca que os dados já foram carregados da nuvem
-          isFirstRender.current = false;
+          if (Array.isArray(parsed)) setGroups(parsed);
         }
       } catch {}
     };
-    window.addEventListener("storage", sync);
-    window.addEventListener("habitos:update", sync);
-    return () => {
-      window.removeEventListener("storage", sync);
-      window.removeEventListener("habitos:update", sync);
-    };
+    window.addEventListener("habitos:update", onCloudUpdate);
+    return () => window.removeEventListener("habitos:update", onCloudUpdate);
   }, []);
 
-  // Sincroniza local e nuvem via CustomEvent
-  useEffect(() => {
-    // Pula a primeira renderização para não sobrescrever dados da nuvem
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ history }));
-      localStorage.setItem(GROUPS_KEY, JSON.stringify(groups));
-      window.dispatchEvent(new CustomEvent("habitos:update"));
-    } catch {}
-  }, [history, groups]);
-
-  const setHabitState = (k: string, state: 'green' | 'red') => setHistory((prev) => {
-    const todayHistory = prev[date] || {};
-    // Se clicar no mesmo estado, remove (toggle off)
-    const newState = todayHistory[k] === state ? undefined : state;
-    const nextToday = { ...todayHistory };
-    if (newState) nextToday[k] = newState;
-    else delete nextToday[k];
-    
-    const next = { ...prev, [date]: nextToday };
-    return next;
-  });
+  const setHabitState = (k: string, state: 'green' | 'red') => {
+    setHistory((prev) => {
+      const todayHistory = prev[date] || {};
+      const newState = todayHistory[k] === state ? undefined : state;
+      const nextToday = { ...todayHistory };
+      if (newState) nextToday[k] = newState;
+      else delete nextToday[k];
+      const next = { ...prev, [date]: nextToday };
+      // Salva imediatamente
+      saveLocally(next, groups);
+      return next;
+    });
+  };
 
   const addItem = (pillar: string) => {
     if (!newItemText.trim()) return;
-    setGroups(prev => prev.map(g => {
-      if (g.pillar === pillar && !g.items.includes(newItemText.trim())) {
-        return { ...g, items: [...g.items, newItemText.trim()] };
+    const trimmed = newItemText.trim();
+    const nextGroups = groups.map(g => {
+      if (g.pillar === pillar && !g.items.includes(trimmed)) {
+        return { ...g, items: [...g.items, trimmed] };
       }
       return g;
-    }));
+    });
+    setGroups(nextGroups);
+    saveLocally(history, nextGroups);
+    window.dispatchEvent(new CustomEvent("habitos:update"));
     setNewItemText("");
     setEditingPillar(null);
   };
 
   const removeItem = (pillar: string, item: string) => {
-    setGroups(prev => prev.map(g => {
+    const nextGroups = groups.map(g => {
       if (g.pillar === pillar) return { ...g, items: g.items.filter(i => i !== item) };
       return g;
-    }));
+    });
+    setGroups(nextGroups);
+    saveLocally(history, nextGroups);
+    window.dispatchEvent(new CustomEvent("habitos:update"));
   };
 
   const startRename = (pillar: string, item: string) => {
@@ -212,35 +213,40 @@ function Habitos() {
     if (!renamingItem) return;
     const newName = renameText.trim();
     if (!newName || newName === renamingItem.item) { setRenamingItem(null); return; }
-    // Atualiza grupos
-    setGroups(prev => prev.map(g => {
+
+    const nextGroups = groups.map(g => {
       if (g.pillar !== renamingItem.pillar) return g;
       return { ...g, items: g.items.map(i => i === renamingItem.item ? newName : i) };
-    }));
-    // Migra histórico para a nova chave
-    setHistory(prev => {
-      const next: typeof prev = {};
-      for (const [day, dayMap] of Object.entries(prev)) {
-        const newDay: Record<string, 'green' | 'red'> = { ...dayMap };
-        if (renamingItem.item in newDay) {
-          newDay[newName] = newDay[renamingItem.item];
-          delete newDay[renamingItem.item];
-        }
-        next[day] = newDay;
-      }
-      return next;
     });
+
+    const nextHistory: typeof history = {};
+    for (const [day, dayMap] of Object.entries(history)) {
+      const newDay: Record<string, 'green' | 'red'> = { ...dayMap };
+      if (renamingItem.item in newDay) {
+        newDay[newName] = newDay[renamingItem.item];
+        delete newDay[renamingItem.item];
+      }
+      nextHistory[day] = newDay;
+    }
+
+    setGroups(nextGroups);
+    setHistory(nextHistory);
+    saveLocally(nextHistory, nextGroups);
+    window.dispatchEvent(new CustomEvent("habitos:update"));
     setRenamingItem(null);
   };
 
   const moveItem = (pillar: string, index: number, dir: -1 | 1) => {
-    setGroups(prev => prev.map(g => {
+    const nextGroups = groups.map(g => {
       if (g.pillar !== pillar) return g;
       if (index + dir < 0 || index + dir >= g.items.length) return g;
       const newItems = [...g.items];
       [newItems[index], newItems[index + dir]] = [newItems[index + dir], newItems[index]];
       return { ...g, items: newItems };
-    }));
+    });
+    setGroups(nextGroups);
+    saveLocally(history, nextGroups);
+    window.dispatchEvent(new CustomEvent("habitos:update"));
   };
 
   const all = groups.flatMap((g) => g.items);
