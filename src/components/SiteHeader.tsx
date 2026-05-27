@@ -5,6 +5,7 @@ import { loadIdentidade, savePortrait, Portrait } from "@/lib/identidade";
 
 const nav = [
   { to: "/dashboard", label: "Dashboard" },
+  { to: "/habitos", label: "Hábitos" },
   { to: "/aura", label: "Aura" },
   { to: "/biblioteca", label: "Biblioteca" },
 ] as const;
