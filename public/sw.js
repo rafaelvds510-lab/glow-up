@@ -25,9 +25,9 @@ self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
 
   const url = new URL(e.request.url);
-  // Ignora cache para requisições de APIs externas (como Supabase)
+
+  // Ignorar chamadas de API (como as do Supabase) ou outros domínios externos
   if (url.origin !== self.location.origin) {
-    e.respondWith(fetch(e.request));
     return;
   }
 
@@ -38,14 +38,25 @@ self.addEventListener("fetch", (e) => {
     );
     return;
   }
-  // Assets estáticos: cache-first
+
+  // Assets locais da própria aplicação
   e.respondWith(
-    caches.match(e.request).then((cached) =>
-      cached || fetch(e.request).then((res) => {
-        const clone = res.clone();
-        caches.open(CACHE).then((c) => c.put(e.request, clone));
+    caches.match(e.request).then((cached) => {
+      const networkFetch = fetch(e.request).then((res) => {
+        if (res.status === 200) {
+          const clone = res.clone();
+          caches.open(CACHE).then((c) => c.put(e.request, clone));
+        }
         return res;
-      })
-    )
+      }).catch(() => cached);
+
+      // Se for arquivo estático final do Vite (/assets/), podemos usar cache-first
+      if (url.pathname.startsWith("/assets/")) {
+        return cached || networkFetch;
+      }
+
+      // Para outros arquivos locais, revalida em segundo plano para não travar atualizações
+      return cached ? (networkFetch, cached) : networkFetch;
+    })
   );
 });
