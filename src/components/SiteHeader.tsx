@@ -13,7 +13,14 @@ const nav = [
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [portrait, setPortrait] = useState<Portrait | null>(null);
+  const [portrait, setPortrait] = useState<Portrait | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      return loadIdentidade().portrait;
+    } catch {
+      return null;
+    }
+  });
   const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
   const router = useRouterState();
 

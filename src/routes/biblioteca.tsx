@@ -104,10 +104,28 @@ function Biblioteca() {
   const [activeTab, setActiveTab] = useState<"acervo" | "leituras" | "notas">("acervo");
   const [query, setQuery] = useState("");
   const [onlyFavs, setOnlyFavs] = useState(false);
-  const [favs, setFavs] = useState<string[]>([]);
-  const [readMap, setReadMap] = useState<Record<string, any>>({});
+  const [favs, setFavs] = useState<string[]>(() => {
+    try {
+      return loadFavoritos();
+    } catch {
+      return [];
+    }
+  });
+  const [readMap, setReadMap] = useState<Record<string, any>>(() => {
+    try {
+      return loadLeituras();
+    } catch {
+      return {};
+    }
+  });
   const [selectedBookKey, setSelectedBookKey] = useState<string | null>(null);
-  const [frases, setFrases] = useState<FraseBook[]>([]);
+  const [frases, setFrases] = useState<FraseBook[]>(() => {
+    try {
+      return loadFrases();
+    } catch {
+      return [];
+    }
+  });
 
   useEffect(() => {
     const sync = () => {
@@ -609,12 +627,24 @@ function BookNotesPage({
   onBack: () => void;
 }) {
   const bKey = book ? bookKey(book.title, book.author) : "";
-  const [nota, setNota] = useState("");
+  const [nota, setNota] = useState(() => bKey ? loadNota(bKey) : "");
   const [saved, setSaved] = useState(false);
-  const [frases, setFrases] = useState<FraseBook[]>([]);
+  const [frases, setFrases] = useState<FraseBook[]>(() => book ? getFrasesByBook(book.title, book.author) : []);
   const [newFraseText, setNewFraseText] = useState("");
-  const [readMap, setReadMap] = useState<Record<string, any>>({});
-  const [favs, setFavs] = useState<string[]>([]);
+  const [readMap, setReadMap] = useState<Record<string, any>>(() => {
+    try {
+      return loadLeituras();
+    } catch {
+      return {};
+    }
+  });
+  const [favs, setFavs] = useState<string[]>(() => {
+    try {
+      return loadFavoritos();
+    } catch {
+      return [];
+    }
+  });
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {

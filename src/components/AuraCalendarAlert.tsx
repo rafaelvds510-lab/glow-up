@@ -9,7 +9,28 @@ type AlertItem = {
 };
 
 export function AuraCalendarAlert({ storageKey, title, defaultFrequency = 30 }: { storageKey: string, title: string, defaultFrequency?: number }) {
-  const [items, setItems] = useState<AlertItem[]>([]);
+  const [items, setItems] = useState<AlertItem[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        // Migration from old single object format to array format
+        if (!Array.isArray(parsed) && parsed.lastDone) {
+          return [{
+            id: 'legacy',
+            title: title,
+            description: '',
+            lastDone: parsed.lastDone,
+            frequencyDays: parsed.frequencyDays
+          }];
+        } else if (Array.isArray(parsed)) {
+          return parsed;
+        }
+      }
+    } catch {}
+    return [];
+  });
   const [editing, setEditing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 

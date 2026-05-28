@@ -105,13 +105,71 @@ function Dashboard() {
   const [animateNextHabit, setAnimateNextHabit] = useState(false);
 
   // Estados das Leituras
-  const [readMap, setReadMap] = useState<Record<string, ReadingEntry>>({});
+  const [readMap, setReadMap] = useState<Record<string, ReadingEntry>>(() => {
+    try {
+      return loadLeituras();
+    } catch {
+      return {};
+    }
+  });
 
   // Estados dos Alertas
-  const [criticalAlerts, setCriticalAlerts] = useState<AlertItem[]>([]);
+  const [criticalAlerts, setCriticalAlerts] = useState<AlertItem[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const alerts: AlertItem[] = [];
+      const todayStr = new Date().toISOString().slice(0, 10);
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.endsWith(".alert")) {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+              parsed.forEach((item: any) => {
+                alerts.push({
+                  ...item,
+                  originKey: key
+                });
+              });
+            } else if (parsed.lastDone) {
+              alerts.push({
+                id: 'legacy',
+                title: key.replace("aura.", "").replace(".alert", ""),
+                description: '',
+                lastDone: parsed.lastDone,
+                frequencyDays: parsed.frequencyDays || 30,
+                originKey: key
+              });
+            }
+          }
+        }
+      }
+
+      return alerts.map(item => {
+        const lastD = new Date(item.lastDone);
+        const today = new Date(todayStr);
+        const diffTime = today.getTime() - lastD.getTime();
+        const passedDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        const daysDiff = item.frequencyDays - passedDays;
+        return { item, daysDiff };
+      })
+      .filter(({ daysDiff }) => daysDiff <= 3)
+      .sort((a, b) => a.daysDiff - b.daysDiff)
+      .map(({ item }) => item);
+    } catch {
+      return [];
+    }
+  });
 
   // Estados de Vícios (Libertação)
-  const [vicios, setVicios] = useState<Vicio[]>([]);
+  const [vicios, setVicios] = useState<Vicio[]>(() => {
+    try {
+      return loadVicios();
+    } catch {
+      return [];
+    }
+  });
 
   // Carregar todos os dados ao montar e sincronizar
   const loadAllData = () => {

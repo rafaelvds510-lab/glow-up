@@ -87,7 +87,17 @@ export function ProductCatalog({
   defaultProducts: Omit<Product, "id" | "custom">[];
   categories: ProductCategory[];
 }) {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<Product[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw) {
+        return JSON.parse(raw);
+      }
+    } catch {}
+    const seeded: Product[] = defaultProducts.map((p, i) => ({ ...p, id: `default-${i}`, custom: false }));
+    return seeded;
+  });
   const [filter, setFilter] = useState<FilterOption>("Todos");
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
