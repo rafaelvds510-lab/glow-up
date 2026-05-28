@@ -23,6 +23,14 @@ self.addEventListener("activate", (e) => {
 
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
+
+  const url = new URL(e.request.url);
+  // Ignora cache para requisições de APIs externas (como Supabase)
+  if (url.origin !== self.location.origin) {
+    e.respondWith(fetch(e.request));
+    return;
+  }
+
   // Navegação: network-first, fallback cache
   if (e.request.mode === "navigate") {
     e.respondWith(
