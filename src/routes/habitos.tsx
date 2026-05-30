@@ -18,15 +18,7 @@ export const Route = createFileRoute("/habitos")({
 
 const defaultGroups = [
   {
-    pillar: "Higiene",
-    items: [],
-  },
-  {
-    pillar: "Aura",
-    items: [],
-  },
-  {
-    pillar: "Verbo",
+    pillar: "Hábitos",
     items: [],
   }
 ];
@@ -42,15 +34,26 @@ function Habitos() {
   useVisitPage("habitos");
   
   const [groups, setGroups] = useState<Array<{ pillar: string; items: string[] }>>(() => {
-    if (typeof window === "undefined") return defaultGroups;
+    const fallback = [{ pillar: "Hábitos", items: [] }];
+    if (typeof window === "undefined") return fallback;
     try {
       const savedGroups = localStorage.getItem(GROUPS_KEY);
       if (savedGroups) {
         const parsed = JSON.parse(savedGroups);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Migração de múltiplos pilares legados para um único pilar "Hábitos"
+          if (parsed.length > 1 || parsed[0].pillar !== "Hábitos") {
+            const allItems = parsed.flatMap((g: any) => g.items || []);
+            const uniqueItems = Array.from(new Set(allItems));
+            const unified = [{ pillar: "Hábitos", items: uniqueItems }];
+            localStorage.setItem(GROUPS_KEY, JSON.stringify(unified));
+            return unified;
+          }
+          return parsed;
+        }
       }
     } catch {}
-    return defaultGroups;
+    return fallback;
   });
   const [history, setHistory] = useState<Record<string, Record<string, 'green' | 'red'>>>(() => {
     if (typeof window === "undefined") return {};
@@ -178,25 +181,25 @@ function Habitos() {
     });
   };
 
-  const addItem = (pillar: string) => {
+  const addItem = () => {
     if (!newItemText.trim()) return;
     const trimmed = newItemText.trim();
     const nextGroups = groups.map(g => {
-      if (g.pillar === pillar && !g.items.includes(trimmed)) {
+      if (g.pillar === "Hábitos" && !g.items.includes(trimmed)) {
         return { ...g, items: [...g.items, trimmed] };
       }
       return g;
     });
-    setGroups(nextGroups);
-    saveLocally(history, nextGroups);
+    const finalGroups = nextGroups.length > 0 ? nextGroups : [{ pillar: "Hábitos", items: [trimmed] }];
+    setGroups(finalGroups);
+    saveLocally(history, finalGroups);
     window.dispatchEvent(new CustomEvent("habitos:update"));
     setNewItemText("");
-    setEditingPillar(null);
   };
 
-  const removeItem = (pillar: string, item: string) => {
+  const removeItem = (item: string) => {
     const nextGroups = groups.map(g => {
-      if (g.pillar === pillar) return { ...g, items: g.items.filter(i => i !== item) };
+      if (g.pillar === "Hábitos") return { ...g, items: g.items.filter(i => i !== item) };
       return g;
     });
     setGroups(nextGroups);
@@ -204,8 +207,8 @@ function Habitos() {
     window.dispatchEvent(new CustomEvent("habitos:update"));
   };
 
-  const startRename = (pillar: string, item: string) => {
-    setRenamingItem({ pillar, item });
+  const startRename = (item: string) => {
+    setRenamingItem({ pillar: "Hábitos", item });
     setRenameText(item);
   };
 
@@ -215,7 +218,7 @@ function Habitos() {
     if (!newName || newName === renamingItem.item) { setRenamingItem(null); return; }
 
     const nextGroups = groups.map(g => {
-      if (g.pillar !== renamingItem.pillar) return g;
+      if (g.pillar !== "Hábitos") return g;
       return { ...g, items: g.items.map(i => i === renamingItem.item ? newName : i) };
     });
 
@@ -236,9 +239,9 @@ function Habitos() {
     setRenamingItem(null);
   };
 
-  const moveItem = (pillar: string, index: number, dir: -1 | 1) => {
+  const moveItem = (index: number, dir: -1 | 1) => {
     const nextGroups = groups.map(g => {
-      if (g.pillar !== pillar) return g;
+      if (g.pillar !== "Hábitos") return g;
       if (index + dir < 0 || index + dir >= g.items.length) return g;
       const newItems = [...g.items];
       [newItems[index], newItems[index + dir]] = [newItems[index + dir], newItems[index]];
@@ -388,44 +391,55 @@ function Habitos() {
           </div>
         )}
 
+        {/* Campo de Adição de Hábito - Sempre Visível */}
+        <div className="mb-6 bg-card border border-border p-5">
+          <p className="label-eyebrow mb-3">Novo Hábito</p>
+          <div className="flex gap-2">
+            <input 
+              type="text" 
+              value={newItemText} 
+              onChange={(e) => setNewItemText(e.target.value)} 
+              placeholder="Digite um hábito (ex: Beber 2L de água, Fazer alongamento...) e pressione Enter" 
+              className="flex-1 border border-border bg-background px-4 py-2.5 text-sm outline-none focus:border-primary transition"
+              onKeyDown={(e) => e.key === 'Enter' && addItem()}
+            />
+            <button 
+              onClick={addItem}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-6 py-2.5 text-xs uppercase tracking-widest transition cursor-pointer"
+            >
+              Adicionar
+            </button>
+          </div>
+        </div>
+
         {groups.map((g) => (
-          <div key={g.pillar}>
-            <div className="flex items-center justify-between">
-              <p className="label-eyebrow">Pilar · {g.pillar}</p>
-              <button 
-                onClick={() => setEditingPillar(editingPillar === g.pillar ? null : g.pillar)}
-                className="text-xs uppercase tracking-widest text-primary hover:underline"
-              >
-                {editingPillar === g.pillar ? "Fechar" : "Adicionar Hábito"}
-              </button>
-            </div>
-            
-            {editingPillar === g.pillar && (
-              <div className="mt-4 flex gap-2">
-                <input 
-                  type="text" 
-                  value={newItemText} 
-                  onChange={(e) => setNewItemText(e.target.value)} 
-                  placeholder="Novo hábito..." 
-                  className="flex-1 border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
-                  onKeyDown={(e) => e.key === 'Enter' && addItem(g.pillar)}
-                />
-                <button 
-                  onClick={() => addItem(g.pillar)}
-                  className="border border-primary bg-primary/10 px-4 py-2 text-xs uppercase tracking-widest text-primary hover:bg-primary/20"
-                >
-                  Salvar
-                </button>
-              </div>
-            )}
-            
-            <ul className="mt-4 divide-y divide-border border-y border-border">
+          <div key={g.pillar} className="mb-8">
+            <ul className="divide-y divide-border border border-border bg-card">
               {g.items.map((it, idx) => {
                 const state = todayDone[it];
                 return (
-                  <li key={it} className="group py-3 px-3 transition hover:bg-muted/40">
-                    {/* Linha principal: nome + botões de check */}
-                    <div className="flex items-center gap-2 min-w-0">
+                  <li key={it} className="group py-4 px-4 transition hover:bg-muted/30">
+                    <div className="flex items-center gap-3 min-w-0">
+                      {/* Setas de Reordenação no Lado Esquerdo */}
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          disabled={idx === 0}
+                          onClick={() => moveItem(idx, -1)}
+                          className="w-7 h-7 flex items-center justify-center border border-border text-xs text-muted-foreground hover:border-primary hover:text-primary disabled:opacity-30 disabled:hover:border-border disabled:hover:text-muted-foreground transition cursor-pointer disabled:cursor-not-allowed"
+                          title="Subir hábito"
+                        >
+                          ▲
+                        </button>
+                        <button
+                          disabled={idx === g.items.length - 1}
+                          onClick={() => moveItem(idx, 1)}
+                          className="w-7 h-7 flex items-center justify-center border border-border text-xs text-muted-foreground hover:border-primary hover:text-primary disabled:opacity-30 disabled:hover:border-border disabled:hover:text-muted-foreground transition cursor-pointer disabled:cursor-not-allowed"
+                          title="Descer hábito"
+                        >
+                          ▼
+                        </button>
+                      </div>
+
                       {/* Nome do hábito — normal ou modo edição */}
                       {renamingItem?.pillar === g.pillar && renamingItem?.item === it ? (
                         <div className="flex flex-1 min-w-0 items-center gap-2">
@@ -437,7 +451,7 @@ function Habitos() {
                             onKeyDown={e => { if (e.key === 'Enter') confirmRename(); if (e.key === 'Escape') setRenamingItem(null); }}
                             className="flex-1 min-w-0 text-base bg-transparent border-b border-primary outline-none text-foreground"
                           />
-                          <button onClick={confirmRename} className="shrink-0 text-xs uppercase tracking-widest text-primary border border-primary px-2 py-1 hover:bg-primary/10 transition">OK</button>
+                          <button onClick={confirmRename} className="shrink-0 text-xs uppercase tracking-widest text-primary border border-primary px-3 py-1.5 hover:bg-primary/10 transition">OK</button>
                           <button onClick={() => setRenamingItem(null)} className="shrink-0 text-xs text-muted-foreground hover:text-foreground">✕</button>
                         </div>
                       ) : (
@@ -448,11 +462,17 @@ function Habitos() {
                         </span>
                       )}
 
-                      {/* Botões de check — tamanho reduzido para caber no mobile */}
-                      <div className="flex items-center gap-1 shrink-0">
+                      {/* Ações de Edição (Desktop: Hover, Mobile: Always visible) */}
+                      <div className="opacity-0 group-hover:opacity-100 focus-within:opacity-100 hidden md:flex items-center gap-2 transition-opacity shrink-0">
+                        <button onClick={() => startRename(it)} className="text-xs uppercase tracking-widest text-primary hover:underline">Renomear</button>
+                        <button onClick={() => removeItem(it)} className="text-xs uppercase tracking-widest text-destructive hover:underline">Remover</button>
+                      </div>
+
+                      {/* Botões de check */}
+                      <div className="flex items-center gap-1.5 shrink-0">
                         <button
                           onClick={() => setHabitState(it, 'green')}
-                          className={`w-8 h-8 flex items-center justify-center rounded-full border text-xs font-bold transition-colors ${
+                          className={`w-9 h-9 flex items-center justify-center rounded-full border text-xs font-bold transition-colors ${
                             state === 'green'
                               ? 'bg-green-600 border-green-600 text-white'
                               : 'border-border text-muted-foreground hover:border-green-600 hover:text-green-600'
@@ -461,7 +481,7 @@ function Habitos() {
                         >✓</button>
                         <button
                           onClick={() => setHabitState(it, 'red')}
-                          className={`w-8 h-8 flex items-center justify-center rounded-full border text-xs font-bold transition-colors ${
+                          className={`w-9 h-9 flex items-center justify-center rounded-full border text-xs font-bold transition-colors ${
                             state === 'red'
                               ? 'bg-red-600 border-red-600 text-white'
                               : 'border-border text-muted-foreground hover:border-red-600 hover:text-red-600'
@@ -469,26 +489,16 @@ function Habitos() {
                           title="Falhou"
                         >✕</button>
                       </div>
-
-                      {/* Ações de edição — só no desktop (hover) */}
-                      <div className="opacity-0 group-hover:opacity-100 hidden md:flex items-center gap-1 transition-opacity shrink-0">
-                        <button onClick={() => moveItem(g.pillar, idx, -1)} className="p-1 text-muted-foreground hover:text-primary text-xs">▲</button>
-                        <button onClick={() => moveItem(g.pillar, idx, 1)} className="p-1 text-muted-foreground hover:text-primary text-xs">▼</button>
-                        <button onClick={() => startRename(g.pillar, it)} className="px-2 text-xs uppercase tracking-widest text-primary hover:underline">Renomear</button>
-                        <button onClick={() => removeItem(g.pillar, it)} className="px-2 text-xs uppercase tracking-widest text-destructive hover:underline">Remover</button>
-                      </div>
                     </div>
 
-                    {/* Ações de edição — mobile (linha separada, sempre visível) */}
-                    <div className="mt-1 flex items-center gap-3 md:hidden">
-                      <button onClick={() => moveItem(g.pillar, idx, -1)} className="text-xs text-muted-foreground hover:text-primary">▲</button>
-                      <button onClick={() => moveItem(g.pillar, idx, 1)} className="text-xs text-muted-foreground hover:text-primary">▼</button>
-                      <button onClick={() => startRename(g.pillar, it)} className="text-xs uppercase tracking-widest text-primary hover:underline">Renomear</button>
-                      <button onClick={() => removeItem(g.pillar, it)} className="text-xs uppercase tracking-widest text-destructive hover:underline">Remover</button>
+                    {/* Ações de edição — mobile */}
+                    <div className="mt-2 flex items-center gap-4 md:hidden">
+                      <button onClick={() => startRename(it)} className="text-xs uppercase tracking-widest text-primary hover:underline">Renomear</button>
+                      <button onClick={() => removeItem(it)} className="text-xs uppercase tracking-widest text-destructive hover:underline">Remover</button>
                     </div>
 
                     {/* Histórico 21 Dias do Hábito */}
-                    <div className="mt-2 flex gap-[2px] overflow-x-auto pb-1">
+                    <div className="mt-3 flex gap-[2px] overflow-x-auto pb-1">
                       {daysArray.map(d => {
                         const s = history[d]?.[it];
                         const isToday = d === date;
@@ -510,17 +520,23 @@ function Habitos() {
                 );
               })}
               {g.items.length === 0 && (
-                <li className="py-4 text-sm italic text-muted-foreground">Nenhum hábito neste pilar.</li>
+                <li className="py-6 px-4 text-center text-sm italic text-muted-foreground">Você ainda não tem nenhum hábito cadastrado. Adicione um acima para começar!</li>
               )}
             </ul>
           </div>
         ))}
-        <button
-          onClick={() => setHistory({})}
-          className="text-sm uppercase tracking-widest text-destructive hover:underline"
-        >
-          Limpar Todo o Histórico
-        </button>
+        <div className="mt-8 flex justify-end">
+          <button
+            onClick={() => {
+              if (confirm("Deseja realmente limpar todo o histórico de hábitos? Esta ação não pode ser desfeita.")) {
+                setHistory({});
+              }
+            }}
+            className="text-sm uppercase tracking-widest text-destructive hover:underline"
+          >
+            Limpar Todo o Histórico
+          </button>
+        </div>
       </section>
     </PageShell>
   );

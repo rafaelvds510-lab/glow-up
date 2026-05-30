@@ -116,8 +116,8 @@ export async function pushSyncData(): Promise<boolean> {
   console.log("[Sync] Enviando dados para a nuvem...", payload);
 
   try {
-    const { error } = await supabase
-      .from("user_sync_data" as any)
+    const { error } = await (supabase
+      .from("user_sync_data" as any) as any)
       .upsert(payload, { onConflict: "user_id" });
 
     if (error) {
@@ -148,11 +148,11 @@ export async function pullSyncData(): Promise<boolean> {
   console.log("[Sync] Buscando dados da nuvem...");
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase
       .from("user_sync_data" as any)
       .select("*")
       .eq("user_id", userId)
-      .maybeSingle();
+      .maybeSingle() as any);
 
     if (error) {
       console.error("[Sync] Erro no pull:", error.message, error);

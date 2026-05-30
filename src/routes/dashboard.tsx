@@ -83,7 +83,7 @@ function Dashboard() {
   const todayStr = todayKey();
 
   // Estados dos Hábitos
-  const [groups, setGroups] = useState(() => {
+  const [groups, setGroups] = useState<Array<{ pillar: string; items: string[] }>>(() => {
     if (typeof window === "undefined") return [];
     try {
       const savedGroups = localStorage.getItem(GROUPS_KEY);
