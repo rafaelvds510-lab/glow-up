@@ -114,37 +114,38 @@ function Libertacao() {
 
   // Estatísticas do Mês selecionado
   const monthlyMetrics = useMemo(() => {
-    // Se não há nenhum vício cadastrado, não há nada a contar
+    // Sem vícios: nada a contar
     if (vicios.length === 0) {
       return { totalRelapses: 0, cleanDays: 0, purityRate: -1, mostCriticalVicio: "Nenhum", maxRelapses: 0, countableDays: 0, hasVicios: false };
     }
 
-    // Determina o primeiro dia contável do mês:
-    // é o máximo entre o dia 1 do mês e o dia de cadastro do vício mais antigo neste mês
-    // (se nenhum vício foi criado neste mês ou antes, usa o dia 1)
+    // Helper: converte qualquer data para meia-noite local (sem horário)
+    const toDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+    // Data de criação do vício mais antigo (normalizada para o dia, sem horário)
+    const oldestDay = vicios.reduce((oldest, v) => {
+      const d = toDay(new Date(v.createdAt));
+      return d < oldest ? d : oldest;
+    }, toDay(new Date(vicios[0].createdAt)));
+
+    // Limites do mês (em dias, sem horário)
     const monthStart = new Date(selectedYear, selectedMonth, 1);
     const monthEnd   = new Date(selectedYear, selectedMonth, daysInMonth);
-    const today      = new Date();
-    const lastCountable = today < monthEnd ? today : monthEnd;
+    const todayDay   = toDay(new Date());
 
-    // Data de criação do vício mais antigo
-    const oldestCreatedAt = vicios.reduce((oldest, v) => {
-      const d = new Date(v.createdAt);
-      return d < oldest ? d : oldest;
-    }, new Date(vicios[0].createdAt));
+    // Início efetivo da contagem = mais tardio entre o cadastro e o início do mês
+    const effectiveStart = oldestDay > monthStart ? oldestDay : monthStart;
 
-    // O início da contagem é: o mais tardio entre o início do mês e o cadastro mais antigo
-    const countStart = oldestCreatedAt > monthStart ? oldestCreatedAt : monthStart;
+    // Fim efetivo = mais cedo entre hoje e o último dia do mês
+    const effectiveEnd = todayDay < monthEnd ? todayDay : monthEnd;
 
-    // Dias contáveis = do countStart até hoje (ou fim do mês, o que vier primeiro)
-    const countableDays = lastCountable >= countStart
-      ? Math.ceil((lastCountable.getTime() - countStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
-      : 0;
-
-    // Caso o mês selecionado seja inteiramente antes do cadastro de qualquer vício
-    if (countableDays <= 0) {
+    // Se o mês inteiro é anterior ao cadastro, ou futuro
+    if (effectiveEnd < effectiveStart) {
       return { totalRelapses: 0, cleanDays: 0, purityRate: -1, mostCriticalVicio: "Nenhum", maxRelapses: 0, countableDays: 0, hasVicios: true };
     }
+
+    // Dias contáveis (inclusivo em ambas as pontas)
+    const countableDays = Math.round((effectiveEnd.getTime() - effectiveStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
     let totalRelapses = 0;
     let daysWithRelapses = 0;
@@ -152,12 +153,12 @@ function Libertacao() {
 
     for (let d = 1; d <= daysInMonth; d++) {
       const monthStr = String(selectedMonth + 1).padStart(2, "0");
-      const dayStr = String(d).padStart(2, "0");
-      const dateStr = `${selectedYear}-${monthStr}-${dayStr}`;
-      const cellDate = new Date(`${dateStr}T00:00:00`);
+      const dayStr   = String(d).padStart(2, "0");
+      const dateStr  = `${selectedYear}-${monthStr}-${dayStr}`;
+      const cellDay  = new Date(selectedYear, selectedMonth, d); // meia-noite local, sem horário
 
       // Só conta dias dentro da janela contável
-      if (cellDate < countStart || cellDate > lastCountable) continue;
+      if (cellDay < effectiveStart || cellDay > effectiveEnd) continue;
 
       const relapsesOnDay = relapsesByDay[dateStr] || [];
       if (relapsesOnDay.length > 0) {
@@ -169,28 +170,18 @@ function Libertacao() {
       }
     }
 
-    const cleanDays = countableDays - daysWithRelapses;
+    const cleanDays  = countableDays - daysWithRelapses;
     const purityRate = Math.round((cleanDays / countableDays) * 100);
 
     let mostCriticalVicio = "Nenhum";
     let maxRelapses = 0;
     Object.entries(relapsesPerVicio).forEach(([name, count]) => {
-      if (count > maxRelapses) {
-        maxRelapses = count;
-        mostCriticalVicio = name;
-      }
+      if (count > maxRelapses) { maxRelapses = count; mostCriticalVicio = name; }
     });
 
-    return {
-      totalRelapses,
-      cleanDays,
-      purityRate,
-      mostCriticalVicio,
-      maxRelapses,
-      countableDays,
-      hasVicios: true,
-    };
+    return { totalRelapses, cleanDays, purityRate, mostCriticalVicio, maxRelapses, countableDays, hasVicios: true };
   }, [vicios, selectedYear, selectedMonth, daysInMonth, relapsesByDay]);
+
 
 
   return (
