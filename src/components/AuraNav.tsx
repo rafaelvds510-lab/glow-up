@@ -8,6 +8,7 @@ const tabs: { to: string; label: string; exact?: boolean }[] = [
   { to: "/aura/perfume", label: "Perfume" },
   { to: "/aura/acessorios", label: "Acessórios" },
   { to: "/aura/skincare", label: "Skincare" },
+  { to: "/aura/corpo", label: "Corpo" },
 ];
 
 export function AuraNav() {

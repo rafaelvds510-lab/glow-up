@@ -20,6 +20,7 @@ import { Route as AuraVestuarioRouteImport } from './routes/aura.vestuario'
 import { Route as AuraSkincareRouteImport } from './routes/aura.skincare'
 import { Route as AuraPerfumeRouteImport } from './routes/aura.perfume'
 import { Route as AuraCuidadosRouteImport } from './routes/aura.cuidados'
+import { Route as AuraCorpoRouteImport } from './routes/aura.corpo'
 import { Route as AuraCabeloRouteImport } from './routes/aura.cabelo'
 import { Route as AuraBarbaRouteImport } from './routes/aura.barba'
 import { Route as AuraAcessoriosRouteImport } from './routes/aura.acessorios'
@@ -79,6 +80,11 @@ const AuraCuidadosRoute = AuraCuidadosRouteImport.update({
   path: '/cuidados',
   getParentRoute: () => AuraRoute,
 } as any)
+const AuraCorpoRoute = AuraCorpoRouteImport.update({
+  id: '/corpo',
+  path: '/corpo',
+  getParentRoute: () => AuraRoute,
+} as any)
 const AuraCabeloRoute = AuraCabeloRouteImport.update({
   id: '/cabelo',
   path: '/cabelo',
@@ -105,6 +111,7 @@ export interface FileRoutesByFullPath {
   '/aura/acessorios': typeof AuraAcessoriosRoute
   '/aura/barba': typeof AuraBarbaRoute
   '/aura/cabelo': typeof AuraCabeloRoute
+  '/aura/corpo': typeof AuraCorpoRoute
   '/aura/cuidados': typeof AuraCuidadosRoute
   '/aura/perfume': typeof AuraPerfumeRoute
   '/aura/skincare': typeof AuraSkincareRoute
@@ -120,6 +127,7 @@ export interface FileRoutesByTo {
   '/aura/acessorios': typeof AuraAcessoriosRoute
   '/aura/barba': typeof AuraBarbaRoute
   '/aura/cabelo': typeof AuraCabeloRoute
+  '/aura/corpo': typeof AuraCorpoRoute
   '/aura/cuidados': typeof AuraCuidadosRoute
   '/aura/perfume': typeof AuraPerfumeRoute
   '/aura/skincare': typeof AuraSkincareRoute
@@ -137,6 +145,7 @@ export interface FileRoutesById {
   '/aura/acessorios': typeof AuraAcessoriosRoute
   '/aura/barba': typeof AuraBarbaRoute
   '/aura/cabelo': typeof AuraCabeloRoute
+  '/aura/corpo': typeof AuraCorpoRoute
   '/aura/cuidados': typeof AuraCuidadosRoute
   '/aura/perfume': typeof AuraPerfumeRoute
   '/aura/skincare': typeof AuraSkincareRoute
@@ -155,6 +164,7 @@ export interface FileRouteTypes {
     | '/aura/acessorios'
     | '/aura/barba'
     | '/aura/cabelo'
+    | '/aura/corpo'
     | '/aura/cuidados'
     | '/aura/perfume'
     | '/aura/skincare'
@@ -170,6 +180,7 @@ export interface FileRouteTypes {
     | '/aura/acessorios'
     | '/aura/barba'
     | '/aura/cabelo'
+    | '/aura/corpo'
     | '/aura/cuidados'
     | '/aura/perfume'
     | '/aura/skincare'
@@ -186,6 +197,7 @@ export interface FileRouteTypes {
     | '/aura/acessorios'
     | '/aura/barba'
     | '/aura/cabelo'
+    | '/aura/corpo'
     | '/aura/cuidados'
     | '/aura/perfume'
     | '/aura/skincare'
@@ -281,6 +293,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuraCuidadosRouteImport
       parentRoute: typeof AuraRoute
     }
+    '/aura/corpo': {
+      id: '/aura/corpo'
+      path: '/corpo'
+      fullPath: '/aura/corpo'
+      preLoaderRoute: typeof AuraCorpoRouteImport
+      parentRoute: typeof AuraRoute
+    }
     '/aura/cabelo': {
       id: '/aura/cabelo'
       path: '/cabelo'
@@ -309,6 +328,7 @@ interface AuraRouteChildren {
   AuraAcessoriosRoute: typeof AuraAcessoriosRoute
   AuraBarbaRoute: typeof AuraBarbaRoute
   AuraCabeloRoute: typeof AuraCabeloRoute
+  AuraCorpoRoute: typeof AuraCorpoRoute
   AuraCuidadosRoute: typeof AuraCuidadosRoute
   AuraPerfumeRoute: typeof AuraPerfumeRoute
   AuraSkincareRoute: typeof AuraSkincareRoute
@@ -320,6 +340,7 @@ const AuraRouteChildren: AuraRouteChildren = {
   AuraAcessoriosRoute: AuraAcessoriosRoute,
   AuraBarbaRoute: AuraBarbaRoute,
   AuraCabeloRoute: AuraCabeloRoute,
+  AuraCorpoRoute: AuraCorpoRoute,
   AuraCuidadosRoute: AuraCuidadosRoute,
   AuraPerfumeRoute: AuraPerfumeRoute,
   AuraSkincareRoute: AuraSkincareRoute,

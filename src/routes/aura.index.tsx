@@ -18,6 +18,7 @@ const sections = [
   { to: "/aura/perfume", title: "Perfume — A Assinatura Invisível", body: "Notas, ocasiões e os pontos estratégicos de aplicação." },
   { to: "/aura/acessorios", title: "Acessórios — O Toque de Ouro", body: "Relógios, anéis e óculos. O metal que conclui — sem excesso." },
   { to: "/aura/skincare", title: "Pele & Higiene", body: "Limpeza, hidratação e proteção solar. Mármore vivo." },
+  { to: "/aura/corpo", title: "Corpo — A Estrutura", body: "Treino, postura e cuidados corporais. A base que carrega a presença." },
 ] as const;
 
 function AuraIndex() {
