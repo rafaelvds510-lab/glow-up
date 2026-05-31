@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as LibertacaoRouteImport } from './routes/libertacao'
 import { Route as HabitosRouteImport } from './routes/habitos'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as BibliotecaRouteImport } from './routes/biblioteca'
@@ -23,6 +24,11 @@ import { Route as AuraCabeloRouteImport } from './routes/aura.cabelo'
 import { Route as AuraBarbaRouteImport } from './routes/aura.barba'
 import { Route as AuraAcessoriosRouteImport } from './routes/aura.acessorios'
 
+const LibertacaoRoute = LibertacaoRouteImport.update({
+  id: '/libertacao',
+  path: '/libertacao',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const HabitosRoute = HabitosRouteImport.update({
   id: '/habitos',
   path: '/habitos',
@@ -95,6 +101,7 @@ export interface FileRoutesByFullPath {
   '/biblioteca': typeof BibliotecaRoute
   '/dashboard': typeof DashboardRoute
   '/habitos': typeof HabitosRoute
+  '/libertacao': typeof LibertacaoRoute
   '/aura/acessorios': typeof AuraAcessoriosRoute
   '/aura/barba': typeof AuraBarbaRoute
   '/aura/cabelo': typeof AuraCabeloRoute
@@ -109,6 +116,7 @@ export interface FileRoutesByTo {
   '/biblioteca': typeof BibliotecaRoute
   '/dashboard': typeof DashboardRoute
   '/habitos': typeof HabitosRoute
+  '/libertacao': typeof LibertacaoRoute
   '/aura/acessorios': typeof AuraAcessoriosRoute
   '/aura/barba': typeof AuraBarbaRoute
   '/aura/cabelo': typeof AuraCabeloRoute
@@ -125,6 +133,7 @@ export interface FileRoutesById {
   '/biblioteca': typeof BibliotecaRoute
   '/dashboard': typeof DashboardRoute
   '/habitos': typeof HabitosRoute
+  '/libertacao': typeof LibertacaoRoute
   '/aura/acessorios': typeof AuraAcessoriosRoute
   '/aura/barba': typeof AuraBarbaRoute
   '/aura/cabelo': typeof AuraCabeloRoute
@@ -142,6 +151,7 @@ export interface FileRouteTypes {
     | '/biblioteca'
     | '/dashboard'
     | '/habitos'
+    | '/libertacao'
     | '/aura/acessorios'
     | '/aura/barba'
     | '/aura/cabelo'
@@ -156,6 +166,7 @@ export interface FileRouteTypes {
     | '/biblioteca'
     | '/dashboard'
     | '/habitos'
+    | '/libertacao'
     | '/aura/acessorios'
     | '/aura/barba'
     | '/aura/cabelo'
@@ -171,6 +182,7 @@ export interface FileRouteTypes {
     | '/biblioteca'
     | '/dashboard'
     | '/habitos'
+    | '/libertacao'
     | '/aura/acessorios'
     | '/aura/barba'
     | '/aura/cabelo'
@@ -187,10 +199,18 @@ export interface RootRouteChildren {
   BibliotecaRoute: typeof BibliotecaRoute
   DashboardRoute: typeof DashboardRoute
   HabitosRoute: typeof HabitosRoute
+  LibertacaoRoute: typeof LibertacaoRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/libertacao': {
+      id: '/libertacao'
+      path: '/libertacao'
+      fullPath: '/libertacao'
+      preLoaderRoute: typeof LibertacaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/habitos': {
       id: '/habitos'
       path: '/habitos'
@@ -315,6 +335,7 @@ const rootRouteChildren: RootRouteChildren = {
   BibliotecaRoute: BibliotecaRoute,
   DashboardRoute: DashboardRoute,
   HabitosRoute: HabitosRoute,
+  LibertacaoRoute: LibertacaoRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

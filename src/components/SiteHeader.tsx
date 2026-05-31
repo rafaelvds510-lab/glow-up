@@ -6,6 +6,7 @@ import { loadIdentidade, savePortrait, Portrait } from "@/lib/identidade";
 const nav = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/habitos", label: "Hábitos" },
+  { to: "/libertacao", label: "Libertação" },
   { to: "/aura", label: "Aura" },
   { to: "/biblioteca", label: "Biblioteca" },
 ] as const;
@@ -40,6 +41,7 @@ export function SiteHeader() {
     const handler = (e: Event) => {
       e.preventDefault();
       setInstallPrompt(e);
+      (window as any).deferredInstallPrompt = e;
     };
     const installed = () => setInstallPrompt(null);
     window.addEventListener("beforeinstallprompt", handler);
