@@ -163,16 +163,7 @@ export function SiteHeader() {
               ))}
             </nav>
 
-            {/* Botão Instalar PWA — desktop */}
-            {installPrompt && (
-              <button
-                onClick={handleInstall}
-                className="hidden md:flex items-center gap-1.5 border border-primary/50 px-3 py-1.5 text-xs uppercase tracking-widest text-primary hover:bg-primary/10 transition shrink-0 animate-pulse"
-                title="Instalar app no celular ou desktop"
-              >
-                <span>↓</span> Instalar App
-              </button>
-            )}
+
 
             {/* Perfil Button */}
             <button
@@ -241,15 +232,7 @@ export function SiteHeader() {
           </Link>
         ))}
 
-        {/* Botão Instalar PWA — mobile */}
-        {installPrompt && (
-          <button
-            onClick={() => { handleInstall(); setOpen(false); }}
-            className="mt-auto w-full border border-primary/50 bg-primary/5 py-3 text-sm uppercase tracking-widest font-semibold text-primary hover:bg-primary/15 transition flex items-center justify-center gap-2"
-          >
-            <span>↓</span> Instalar App no Celular
-          </button>
-        )}
+
       </nav>
 
       {/* Modal de Perfil */}
@@ -300,6 +283,14 @@ export function SiteHeader() {
               </div>
 
               <div className="w-full mt-8 pt-6 border-t border-border/40 space-y-3">
+                {installPrompt && (
+                  <button 
+                    onClick={() => { handleInstall(); setProfileOpen(false); }}
+                    className="w-full py-3 bg-primary hover:bg-primary/95 text-primary-foreground text-sm uppercase tracking-widest font-bold transition flex items-center justify-center gap-2"
+                  >
+                    <span>↓</span> Instalar Aplicativo
+                  </button>
+                )}
                 <button 
                   onClick={handleRestart}
                   className="w-full py-3 border border-destructive/30 text-destructive text-sm uppercase tracking-widest font-bold hover:bg-destructive hover:text-marble transition"

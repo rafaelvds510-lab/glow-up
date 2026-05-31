@@ -751,28 +751,31 @@ function Dashboard() {
                     return (
                       <div key={v.id} className="border-b border-border/40 pb-4 last:border-0 last:pb-0">
                         <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-display text-xl md:text-2xl text-aegean leading-tight font-bold">{v.name}</h4>
-                              <button onClick={() => handleEditVicio(v.id, v.name)} className="text-muted-foreground/40 hover:text-primary transition" title="Editar">
-                                ✎
-                              </button>
-                              <button onClick={() => handleRemoveVicio(v.id)} className="text-muted-foreground/40 hover:text-destructive transition" title="Excluir">
-                                ✕
-                              </button>
-                            </div>
-                            <p className="text-sm text-muted-foreground mt-0.5">
-                              {v.relapses.length} recaída{v.relapses.length !== 1 && "s"}
-                            </p>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-display text-xl md:text-2xl text-aegean leading-tight font-bold">{v.name}</h4>
+                                <button onClick={() => handleEditVicio(v.id, v.name)} className="text-muted-foreground/40 hover:text-primary transition" title="Editar">
+                                  ✎
+                                </button>
+                                <button onClick={() => handleRemoveVicio(v.id)} className="text-muted-foreground/40 hover:text-destructive transition" title="Excluir">
+                                  ✕
+                                </button>
+                              </div>
                             {todayRelapses.length > 0 && (
                               <p className="text-xs text-destructive font-semibold mt-1">
                                 Hoje: {todayRelapses.length} recaída{todayRelapses.length !== 1 && "s"} ({todayRelapses.join(", ")})
                               </p>
                             )}
                           </div>
-                          <div className="text-right">
-                            <span className="font-mono text-base md:text-lg font-bold text-gold">{daysClean}</span>
-                            <span className="block text-xs uppercase tracking-wider text-muted-foreground">Dia{daysClean !== 1 && "s"} Limpo{daysClean !== 1 && "s"}</span>
+                          <div className="flex items-center gap-4 shrink-0 text-center">
+                            <div>
+                              <span className="font-mono text-base md:text-lg font-bold text-gold block">{daysClean}</span>
+                              <span className="block text-[10px] uppercase tracking-wider text-muted-foreground">Dias Limpos</span>
+                            </div>
+                            <div className="border-l border-border/40 pl-4">
+                              <span className="font-mono text-base md:text-lg font-bold text-terracotta block">{v.relapses.length}</span>
+                              <span className="block text-[10px] uppercase tracking-wider text-muted-foreground">Recaídas</span>
+                            </div>
                           </div>
                         </div>
 

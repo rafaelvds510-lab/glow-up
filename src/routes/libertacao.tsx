@@ -22,8 +22,6 @@ function Libertacao() {
   const [vicios, setVicios] = useState<Vicio[]>([]);
   const [newVicioName, setNewVicioName] = useState("");
   const [currentDate, setCurrentDate] = useState(() => new Date());
-  const [activeInstructionTab, setActiveInstructionTab] = useState<"ios" | "android">("ios");
-  const [nativePrompt, setNativePrompt] = useState<any>(null);
 
   // Carregar vícios e escutar atualizações
   const reloadData = () => {
@@ -36,22 +34,9 @@ function Libertacao() {
     reloadData();
     window.addEventListener("vicios:update", reloadData);
     window.addEventListener("storage", reloadData);
-
-    // Verificar se existe prompt de instalação salvo no objeto global window
-    if ((window as any).deferredInstallPrompt) {
-      setNativePrompt((window as any).deferredInstallPrompt);
-    }
-
-    const installHandler = (e: Event) => {
-      e.preventDefault();
-      setNativePrompt(e);
-    };
-    window.addEventListener("beforeinstallprompt", installHandler);
-
     return () => {
       window.removeEventListener("vicios:update", reloadData);
       window.removeEventListener("storage", reloadData);
-      window.removeEventListener("beforeinstallprompt", installHandler);
     };
   }, []);
 
@@ -71,16 +56,6 @@ function Libertacao() {
   const handleRemoveVicio = (id: string) => {
     if (confirm("Deseja realmente remover este vício do acompanhamento? Todo o histórico de recaídas dele será excluído.")) {
       removeVicio(id);
-    }
-  };
-
-  const handleInstallApp = async () => {
-    if (!nativePrompt) return;
-    nativePrompt.prompt();
-    const { outcome } = await nativePrompt.userChoice;
-    if (outcome === "accepted") {
-      setNativePrompt(null);
-      (window as any).deferredInstallPrompt = null;
     }
   };
 
@@ -371,15 +346,18 @@ function Libertacao() {
                   <div key={v.id} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group">
                     <div>
                       <h4 className="font-display text-xl text-aegean font-bold leading-tight">{v.name}</h4>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Sob controle desde o início · {v.relapses.length} recaída(s) no total
-                      </p>
                     </div>
 
-                    <div className="flex items-center gap-4 justify-between sm:justify-end">
-                      <div className="text-left sm:text-right">
-                        <span className="font-mono text-xl font-bold text-gold">{daysClean}</span>
-                        <span className="block text-[10px] uppercase tracking-wider text-muted-foreground">Dia(s) Limpo(s)</span>
+                    <div className="flex items-center gap-6 justify-between sm:justify-end">
+                      <div className="flex items-center gap-4 text-center">
+                        <div>
+                          <span className="font-mono text-xl font-bold text-gold block">{daysClean}</span>
+                          <span className="block text-[10px] uppercase tracking-wider text-muted-foreground">Dias Limpos</span>
+                        </div>
+                        <div className="border-l border-border/40 pl-4">
+                          <span className="font-mono text-xl font-bold text-terracotta block">{v.relapses.length}</span>
+                          <span className="block text-[10px] uppercase tracking-wider text-muted-foreground">Recaídas</span>
+                        </div>
                       </div>
 
                       <div className="flex gap-2">
@@ -410,85 +388,6 @@ function Libertacao() {
               <p className="text-xs text-muted-foreground max-w-xs mx-auto mt-1">Você não possui nenhum vício registrado para rastreamento. Adicione um vício no campo acima para iniciar a purificação.</p>
             </div>
           )}
-        </section>
-
-        {/* SEÇÃO 4: INSTALAÇÃO DO APLICATIVO NO CELULAR */}
-        <section className="border border-border bg-card p-6 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 left-0 h-[3px] w-full bg-primary" />
-          
-          <div className="mb-6">
-            <h3 className="font-display text-2xl text-aegean uppercase tracking-wider font-semibold">Instalar no Celular</h3>
-            <p className="text-xs text-muted-foreground">Acompanhe seu progresso a qualquer momento adicionando o Santuário à tela do seu celular</p>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-            {/* Esquerda: Native PWA trigger (se disponível) */}
-            <div className="space-y-4">
-              <p className="text-sm leading-relaxed text-foreground/80">
-                O Santuário foi desenvolvido como um aplicativo PWA moderno. Isso significa que ele não precisa de lojas de aplicativos, não ocupa espaço e funciona offline!
-              </p>
-              
-              {nativePrompt ? (
-                <div className="bg-primary/5 border border-primary/20 p-4 rounded-[1px] space-y-3">
-                  <p className="text-xs font-semibold text-primary uppercase tracking-wider">✓ Instalação Simples Disponível</p>
-                  <p className="text-xs text-muted-foreground">Seu navegador oferece suporte à instalação direta e simplificada com apenas um clique.</p>
-                  <button
-                    onClick={handleInstallApp}
-                    className="w-full py-3 bg-primary hover:bg-primary/95 text-primary-foreground text-xs uppercase tracking-widest font-bold transition cursor-pointer flex items-center justify-center gap-2"
-                  >
-                    <span>↓</span> Instalar Aplicativo Agora
-                  </button>
-                </div>
-              ) : (
-                <div className="bg-muted/30 border border-border p-4 rounded-[1px]">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Instalação Avançada</p>
-                  <p className="text-xs text-muted-foreground mt-1">Siga o passo a passo manual ao lado para adicionar o app à sua tela inicial em poucos segundos.</p>
-                </div>
-              )}
-            </div>
-
-            {/* Direita: Abas de Instruções Manuais */}
-            <div className="border border-border bg-background p-5 rounded-[1px]">
-              <div className="flex border-b border-border/40 pb-3 mb-4 gap-2">
-                <button
-                  onClick={() => setActiveInstructionTab("ios")}
-                  className={`flex-1 py-1.5 text-xs uppercase tracking-widest font-bold transition-colors ${
-                    activeInstructionTab === "ios" 
-                      ? "text-primary border-b border-primary" 
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  🍏 iPhone (Safari)
-                </button>
-                <button
-                  onClick={() => setActiveInstructionTab("android")}
-                  className={`flex-1 py-1.5 text-xs uppercase tracking-widest font-bold transition-colors ${
-                    activeInstructionTab === "android" 
-                      ? "text-primary border-b border-primary" 
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  🤖 Android (Chrome)
-                </button>
-              </div>
-
-              {activeInstructionTab === "ios" ? (
-                <ol className="space-y-3 text-xs text-foreground/80 list-decimal list-inside pl-1">
-                  <li>Abra o site no navegador <span className="font-semibold text-foreground">Safari</span> do seu iPhone.</li>
-                  <li>Clique no ícone de <span className="font-semibold text-foreground">Compartilhar</span> (ícone de quadrado com uma seta para cima na barra inferior).</li>
-                  <li>Role as opções para baixo e selecione <span className="font-semibold text-primary">"Adicionar à Tela de Início"</span>.</li>
-                  <li>Confirme o nome e toque em <span className="font-semibold text-primary">"Adicionar"</span> no canto superior direito.</li>
-                </ol>
-              ) : (
-                <ol className="space-y-3 text-xs text-foreground/80 list-decimal list-inside pl-1">
-                  <li>Abra o site no navegador <span className="font-semibold text-foreground">Google Chrome</span> do seu celular.</li>
-                  <li>Toque nos <span className="font-semibold text-foreground">três pontos</span> no canto superior direito para abrir o menu.</li>
-                  <li>Selecione a opção <span className="font-semibold text-primary">"Instalar aplicativo"</span> ou <span className="font-semibold text-primary">"Adicionar à tela inicial"</span>.</li>
-                  <li>Confirme a instalação clicando em <span className="font-semibold text-primary">"Instalar"</span> no painel que se abre.</li>
-                </ol>
-              )}
-            </div>
-          </div>
         </section>
 
       </div>
