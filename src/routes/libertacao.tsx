@@ -114,6 +114,38 @@ function Libertacao() {
 
   // Estatísticas do Mês selecionado
   const monthlyMetrics = useMemo(() => {
+    // Se não há nenhum vício cadastrado, não há nada a contar
+    if (vicios.length === 0) {
+      return { totalRelapses: 0, cleanDays: 0, purityRate: -1, mostCriticalVicio: "Nenhum", maxRelapses: 0, countableDays: 0, hasVicios: false };
+    }
+
+    // Determina o primeiro dia contável do mês:
+    // é o máximo entre o dia 1 do mês e o dia de cadastro do vício mais antigo neste mês
+    // (se nenhum vício foi criado neste mês ou antes, usa o dia 1)
+    const monthStart = new Date(selectedYear, selectedMonth, 1);
+    const monthEnd   = new Date(selectedYear, selectedMonth, daysInMonth);
+    const today      = new Date();
+    const lastCountable = today < monthEnd ? today : monthEnd;
+
+    // Data de criação do vício mais antigo
+    const oldestCreatedAt = vicios.reduce((oldest, v) => {
+      const d = new Date(v.createdAt);
+      return d < oldest ? d : oldest;
+    }, new Date(vicios[0].createdAt));
+
+    // O início da contagem é: o mais tardio entre o início do mês e o cadastro mais antigo
+    const countStart = oldestCreatedAt > monthStart ? oldestCreatedAt : monthStart;
+
+    // Dias contáveis = do countStart até hoje (ou fim do mês, o que vier primeiro)
+    const countableDays = lastCountable >= countStart
+      ? Math.ceil((lastCountable.getTime() - countStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
+      : 0;
+
+    // Caso o mês selecionado seja inteiramente antes do cadastro de qualquer vício
+    if (countableDays <= 0) {
+      return { totalRelapses: 0, cleanDays: 0, purityRate: -1, mostCriticalVicio: "Nenhum", maxRelapses: 0, countableDays: 0, hasVicios: true };
+    }
+
     let totalRelapses = 0;
     let daysWithRelapses = 0;
     const relapsesPerVicio: Record<string, number> = {};
@@ -122,6 +154,10 @@ function Libertacao() {
       const monthStr = String(selectedMonth + 1).padStart(2, "0");
       const dayStr = String(d).padStart(2, "0");
       const dateStr = `${selectedYear}-${monthStr}-${dayStr}`;
+      const cellDate = new Date(`${dateStr}T00:00:00`);
+
+      // Só conta dias dentro da janela contável
+      if (cellDate < countStart || cellDate > lastCountable) continue;
 
       const relapsesOnDay = relapsesByDay[dateStr] || [];
       if (relapsesOnDay.length > 0) {
@@ -133,8 +169,8 @@ function Libertacao() {
       }
     }
 
-    const cleanDays = daysInMonth - daysWithRelapses;
-    const purityRate = daysInMonth > 0 ? Math.round((cleanDays / daysInMonth) * 100) : 100;
+    const cleanDays = countableDays - daysWithRelapses;
+    const purityRate = Math.round((cleanDays / countableDays) * 100);
 
     let mostCriticalVicio = "Nenhum";
     let maxRelapses = 0;
@@ -150,9 +186,12 @@ function Libertacao() {
       cleanDays,
       purityRate,
       mostCriticalVicio,
-      maxRelapses
+      maxRelapses,
+      countableDays,
+      hasVicios: true,
     };
   }, [vicios, selectedYear, selectedMonth, daysInMonth, relapsesByDay]);
+
 
   return (
     <PageShell>
@@ -169,19 +208,41 @@ function Libertacao() {
           <div className="border border-border bg-card p-6 flex flex-col justify-between">
             <span className="label-eyebrow">Taxa de Pureza</span>
             <div className="mt-4">
-              <span className="font-display text-4xl text-primary">{monthlyMetrics.purityRate}%</span>
-              <p className="text-xs text-muted-foreground mt-1">Percentual de dias limpos em {monthName}</p>
+              {monthlyMetrics.purityRate === -1 ? (
+                <>
+                  <span className="font-display text-4xl text-muted-foreground">--</span>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {monthlyMetrics.hasVicios ? "Mês anterior ao cadastro dos vícios" : "Nenhum vício cadastrado ainda"}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <span className="font-display text-4xl text-primary">{monthlyMetrics.purityRate}%</span>
+                  <p className="text-xs text-muted-foreground mt-1">Percentual de dias limpos em {monthName}</p>
+                </>
+              )}
             </div>
             <div className="mt-4 h-1.5 w-full bg-border rounded-full overflow-hidden">
-              <div className="h-full bg-primary transition-all" style={{ width: `${monthlyMetrics.purityRate}%` }} />
+              <div className="h-full bg-primary transition-all" style={{ width: monthlyMetrics.purityRate === -1 ? "0%" : `${monthlyMetrics.purityRate}%` }} />
             </div>
           </div>
 
           <div className="border border-border bg-card p-6 flex flex-col justify-between">
             <span className="label-eyebrow">Dias de Vitória</span>
             <div className="mt-4">
-              <span className="font-display text-4xl text-green-500">{monthlyMetrics.cleanDays} / {daysInMonth}</span>
-              <p className="text-xs text-muted-foreground mt-1">Dias do mês sem nenhuma recaída registrada</p>
+              {monthlyMetrics.purityRate === -1 ? (
+                <>
+                  <span className="font-display text-4xl text-muted-foreground">--</span>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {monthlyMetrics.hasVicios ? "Mês anterior ao cadastro dos vícios" : "Cadastre um vício para começar"}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <span className="font-display text-4xl text-green-500">{monthlyMetrics.cleanDays} / {monthlyMetrics.countableDays}</span>
+                  <p className="text-xs text-muted-foreground mt-1">Dias limpos desde o cadastro do vício</p>
+                </>
+              )}
             </div>
           </div>
 
